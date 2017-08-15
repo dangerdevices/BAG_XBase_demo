@@ -207,18 +207,18 @@ def plot_data(results_dict):
 
 if __name__ == '__main__':
     spec_fname = 'demo_specs/demo.yaml'
-    cur_dsn_name = 'amp_cs'
-    run_lvs = False
+    cur_dsn_name = 'amp_sf'
+    run_lvs = True
 
     top_specs = read_yaml(spec_fname)
 
-    """
+    # """
     bprj = BagProject()
 
     dsn_sch_params = gen_layout(bprj, top_specs, cur_dsn_name)
     gen_schematics(bprj, top_specs, cur_dsn_name, dsn_sch_params, check_lvs=run_lvs)
     simulate(bprj, top_specs, cur_dsn_name)
-    """
+    # """
 
     res_dict = load_sim_data(top_specs, cur_dsn_name)
     plot_data(res_dict)

@@ -43,10 +43,14 @@ class demo_templates__amp_sf_soln(Module):
     Fill in high level description here.
     """
 
+    param_list = ['lch', 'w_dict', 'intent_dict', 'fg_dict', ]
+
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        for par in self.param_list:
+            self.parameters[par] = None
 
-    def design(self):
+    def design(self, lch=18e-9, w_dict=None, intent_dict=None, fg_dict=None):
         """To be overridden by subclasses to design this module.
 
         This method should fill in values for all parameters in
@@ -62,7 +66,38 @@ class demo_templates__amp_sf_soln(Module):
         restore_instance()
         array_instance()
         """
-        pass
+        local_dict = locals()
+        for name in self.param_list:
+            if name not in local_dict:
+                raise ValueError('Parameter %s not specified.' % name)
+            self.parameters[name] = local_dict[name]
+
+        wa = w_dict['amp']
+        wb = w_dict['bias']
+        intenta = intent_dict['amp']
+        intentb = intent_dict['bias']
+
+        fg_amp = fg_dict['amp']
+        fg_bias = fg_dict['bias']
+        fg_ref = fg_dict['ref']
+        fg_dum_list = fg_dict['dum_list']
+
+        self.instances['XAMP'].design(w=wa, l=lch, intent=intenta, nf=fg_amp)
+        self.instances['XBIAS'].design(w=wb, l=lch, intent=intentb, nf=fg_bias)
+        self.instances['XREF'].design(w=wb, l=lch, intent=intentb, nf=fg_ref)
+
+        num_dummies = len(fg_dum_list)
+        name_list = ['XDUM%d' % idx for idx in range(num_dummies)]
+
+        if (fg_amp - fg_bias) % 4 == 0:
+            term_list = [{}, {}, dict(D='VDD')]
+        else:
+            term_list = [{}, {}, dict(D='vout')]
+
+        self.array_instance('XDUM', name_list, term_list=term_list)
+        self.instances['XDUM'][0].design(w=wb, l=lch, intent=intentb, nf=fg_dum_list[0])
+        self.instances['XDUM'][1].design(w=wa, l=lch, intent=intenta, nf=fg_dum_list[1])
+        self.instances['XDUM'][2].design(w=wa, l=lch, intent=intenta, nf=fg_dum_list[2])
 
     def get_layout_params(self, **kwargs):
         """Returns a dictionary with layout parameters.

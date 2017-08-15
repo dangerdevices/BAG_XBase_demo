@@ -3,6 +3,8 @@
 import os
 import importlib
 
+import numpy as np
+import scipy.interpolate as interp
 import matplotlib.pyplot as plt
 
 from bag import BagProject
@@ -24,6 +26,23 @@ def make_tdb(prj, specs, impl_lib):
     routing_grid = RoutingGrid(prj.tech_info, layers, spaces, widths, bot_dir)
     tdb = TemplateDB('template_libs.def', routing_grid, impl_lib, use_cybagoa=True)
     return tdb
+
+
+def gen_pwl_data(fname):
+    td = 100e-12
+    tpulse = 800e-12
+    tr = 20e-12
+    amp = 10e-3
+
+    tvec = [0, td, td + tr, td + tr + tpulse, td + tr + tpulse + tr]
+    yvec = [-amp, -amp, amp, amp, -amp]
+
+    dir_name = os.path.dirname(fname)
+    os.makedirs(dir_name, exist_ok=True)
+
+    with open(fname, 'w') as f:
+        for t, y in zip(tvec, yvec):
+            f.write('%.4g %.4g\n' % (t, y))
 
 
 def gen_layout(prj, specs, dsn_name):
@@ -76,7 +95,9 @@ def gen_schematics(prj, specs, dsn_name, sch_params, check_lvs=False):
         tb_gen_cell = '%s_%s' % (gen_cell, name)
 
         if 'tran_fname' in tb_sch_params:
-            tb_sch_params['tran_fname'] = os.path.abspath(tb_sch_params['tran_fname'])
+            tran_fname = os.path.abspath(tb_sch_params['tran_fname'])
+            gen_pwl_data(tran_fname)
+            tb_sch_params['tran_fname'] = tran_fname
 
         tb_dsn = prj.create_design_module(tb_lib, tb_cell)
         print('computing %s schematics' % tb_gen_cell)
@@ -145,11 +166,42 @@ def plot_data(results_dict):
     vin = dc_results['vin']
     vout = dc_results['vout']
 
-    plt.figure(1)
-    plt.title('DC Transfer function')
-    plt.plot(vin, vout)
-    plt.xlabel('Vin (V)')
+    vin_arg = np.argsort(vin)
+    vin = vin[vin_arg]
+    vout = vout[vin_arg]
+    vout_fun = interp.InterpolatedUnivariateSpline(vin, vout)
+    vout_diff_fun = vout_fun.derivative(1)
+
+    f, (ax1, ax2) = plt.subplots(2, sharex='all')
+    ax1.set_title('Vout vs Vin')
+    ax1.set_ylabel('Vout (V)')
+    ax1.plot(vin, vout)
+    ax2.set_title('Gain vs Vin')
+    ax2.set_ylabel('Gain (V/V)')
+    ax2.set_xlabel('Vin (V)')
+    ax2.plot(vin, vout_diff_fun(vin))
+
+    ac_tran_results = results_dict['tb_ac_tran']
+    tvec = ac_tran_results['time']
+    freq = ac_tran_results['freq']
+    vout_ac = ac_tran_results['vout_ac']
+    vout_tran = ac_tran_results['vout_tran']
+
+    f, (ax1, ax2) = plt.subplots(2, sharex='all')
+    ax1.set_title('Magnitude vs Frequency')
+    ax1.set_ylabel('Magnitude (dB)')
+    ax1.semilogx(freq, 20 * np.log10(np.abs(vout_ac)))
+    ax2.set_title('Phase vs Frequency')
+    ax2.set_ylabel('Phase (Degrees)')
+    ax2.set_xlabel('Frequency (Hz)')
+    ax2.semilogx(freq, np.angle(vout_ac, deg=True))
+
+    plt.figure()
+    plt.title('Vout vs Time')
     plt.ylabel('Vout (V)')
+    plt.xlabel('Time (s)')
+    plt.plot(tvec, vout_tran)
+
     plt.show()
 
 
@@ -158,10 +210,15 @@ if __name__ == '__main__':
     cur_dsn_name = 'amp_cs'
     run_lvs = False
 
-    bprj = BagProject()
     top_specs = read_yaml(spec_fname)
+
+    """
+    bprj = BagProject()
 
     dsn_sch_params = gen_layout(bprj, top_specs, cur_dsn_name)
     gen_schematics(bprj, top_specs, cur_dsn_name, dsn_sch_params, check_lvs=run_lvs)
-    res_dict = simulate(bprj, top_specs, cur_dsn_name)
+    simulate(bprj, top_specs, cur_dsn_name)
+    """
+
+    res_dict = load_sim_data(top_specs, cur_dsn_name)
     plot_data(res_dict)

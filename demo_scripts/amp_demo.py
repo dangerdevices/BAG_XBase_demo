@@ -89,7 +89,7 @@ def gen_schematics(prj, specs, dsn_name, sch_params, check_lvs=False):
 
 def simulate(prj, specs, dsn_name):
     view_name = specs['view_name']
-    sim_env = specs['sim_env']
+    sim_envs = specs['sim_envs']
     dsn_specs = specs[dsn_name]
 
     data_dir = dsn_specs['data_dir']
@@ -102,17 +102,22 @@ def simulate(prj, specs, dsn_name):
         tb_params = info['tb_params']
         tb_gen_cell = '%s_%s' % (gen_cell, name)
 
+        print('setting up %s' % tb_gen_cell)
         tb = prj.configure_testbench(impl_lib, tb_gen_cell)
 
         for key, val in tb_params.items():
             tb.set_parameter(key, val)
         tb.set_simulation_view(impl_lib, gen_cell, view_name)
-        tb.set_simulation_environments(sim_env)
+        tb.set_simulation_environments(sim_envs)
         tb.update_testbench()
+        print('running simulation')
         tb.run_simulation()
+        print('simulation done, load results')
         results = load_sim_results(tb.save_dir)
         save_sim_results(results, os.path.join(data_dir, '%s.hdf5' % tb_gen_cell))
         results_dict[name] = results
+
+    print('all simulation done')
 
     return results_dict
 
@@ -127,7 +132,10 @@ def load_sim_data(specs, dsn_name):
     for name, info in testbenches.items():
         tb_gen_cell = '%s_%s' % (gen_cell, name)
         fname = os.path.join(data_dir, '%s.hdf5' % tb_gen_cell)
+        print('loading simulation data for %s' % tb_gen_cell)
         results_dict[name] = load_sim_file(fname)
+
+    print('finish loading data')
 
     return results_dict
 
@@ -141,17 +149,19 @@ def plot_data(results_dict):
     plt.title('DC Transfer function')
     plt.plot(vin, vout)
     plt.xlabel('Vin (V)')
-    plt.xlabel('Vout (V)')
+    plt.ylabel('Vout (V)')
     plt.show()
 
 
 if __name__ == '__main__':
     spec_fname = 'demo_specs/demo.yaml'
     cur_dsn_name = 'amp_cs'
-    run_lvs = True
+    run_lvs = False
 
     bprj = BagProject()
     top_specs = read_yaml(spec_fname)
 
     dsn_sch_params = gen_layout(bprj, top_specs, cur_dsn_name)
     gen_schematics(bprj, top_specs, cur_dsn_name, dsn_sch_params, check_lvs=run_lvs)
+    res_dict = simulate(bprj, top_specs, cur_dsn_name)
+    plot_data(res_dict)

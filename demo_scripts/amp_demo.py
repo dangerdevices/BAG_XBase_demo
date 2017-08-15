@@ -45,7 +45,7 @@ def gen_layout(prj, specs, dsn_name):
     return template.sch_params
 
 
-def gen_schematics(prj, specs, dsn_name, sch_params):
+def gen_schematics(prj, specs, dsn_name, sch_params, check_lvs=False):
     dsn_specs = specs[dsn_name]
 
     impl_lib = dsn_specs['impl_lib']
@@ -55,8 +55,18 @@ def gen_schematics(prj, specs, dsn_name, sch_params):
     testbenches = dsn_specs['testbenches']
 
     dsn = prj.create_design_module(sch_lib, sch_cell)
+    print('computing %s schematics' % gen_cell)
     dsn.design(**sch_params)
+    print('creating %s schematics' % gen_cell)
     dsn.implement_design(impl_lib, top_cell_name=gen_cell, erase=True)
+
+    if check_lvs:
+        print('running lvs')
+        lvs_passed, lvs_log = prj.run_lvs(impl_lib, gen_cell)
+        if not lvs_passed:
+            raise ValueError('LVS failed.  check log file: %s' % lvs_log)
+        else:
+            print('lvs passed')
 
     for name, info in testbenches.items():
         tb_lib = info['tb_lib']
@@ -69,8 +79,12 @@ def gen_schematics(prj, specs, dsn_name, sch_params):
             tb_sch_params['tran_fname'] = os.path.abspath(tb_sch_params['tran_fname'])
 
         tb_dsn = prj.create_design_module(tb_lib, tb_cell)
+        print('computing %s schematics' % tb_gen_cell)
         tb_dsn.design(dut_lib=impl_lib, dut_cell=gen_cell, **tb_sch_params)
+        print('creating %s schematics' % tb_gen_cell)
         tb_dsn.implement_design(impl_lib, top_cell_name=tb_gen_cell, erase=True)
+
+    print('schematic done')
 
 
 def simulate(prj, specs, dsn_name):
@@ -133,8 +147,11 @@ def plot_data(results_dict):
 
 if __name__ == '__main__':
     spec_fname = 'demo_specs/demo.yaml'
+    cur_dsn_name = 'amp_cs'
+    run_lvs = True
 
     bprj = BagProject()
     top_specs = read_yaml(spec_fname)
 
-    gen_layout(bprj, top_specs, 'amp_cs')
+    dsn_sch_params = gen_layout(bprj, top_specs, cur_dsn_name)
+    gen_schematics(bprj, top_specs, cur_dsn_name, dsn_sch_params, check_lvs=run_lvs)

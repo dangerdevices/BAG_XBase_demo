@@ -5,6 +5,8 @@ import importlib
 
 import matplotlib.pyplot as plt
 
+from bag import BagProject
+from bag.io import read_yaml
 from bag.layout.routing import RoutingGrid
 from bag.layout.template import TemplateDB
 from bag.data import load_sim_results, save_sim_results, load_sim_file
@@ -35,9 +37,11 @@ def gen_layout(prj, specs, dsn_name):
     tdb = make_tdb(prj, specs, impl_lib)
     lay_module = importlib.import_module(lay_package)
     temp_cls = getattr(lay_module, lay_class)
+    print('computing layout')
     template = tdb.new_template(params=layout_params, temp_cls=temp_cls)
-
+    print('creating layout')
     tdb.batch_layout(prj, [template], [gen_cell])
+    print('layout done')
     return template.sch_params
 
 
@@ -125,3 +129,12 @@ def plot_data(results_dict):
     plt.xlabel('Vin (V)')
     plt.xlabel('Vout (V)')
     plt.show()
+
+
+if __name__ == '__main__':
+    spec_fname = 'demo_specs/demo.yaml'
+
+    bprj = BagProject()
+    top_specs = read_yaml(spec_fname)
+
+    gen_layout(bprj, top_specs, 'amp_cs')

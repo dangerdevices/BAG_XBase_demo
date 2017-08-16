@@ -4,7 +4,7 @@ from __future__ import (absolute_import, division,
 # noinspection PyUnresolvedReferences,PyCompatibility
 from builtins import *
 
-from bag.layout.routing import TrackManager, TrackID
+from bag.layout.routing import TrackID
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core import AnalogBase
@@ -58,7 +58,6 @@ class AmpCS(AnalogBase):
             ndum='number of dummies on each side.',
             ptap_w='NMOS substrate width, in meters/number of fins.',
             ntap_w='PMOS substrate width, in meters/number of fins.',
-            tr_widths='track width dictionary.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -73,41 +72,28 @@ class AmpCS(AnalogBase):
         ndum = self.params['ndum']
         ptap_w = self.params['ptap_w']
         ntap_w = self.params['ntap_w']
-        tr_widths = self.params['tr_widths']
         show_pins = self.params['show_pins']
 
         fg_amp = fg_dict['amp']
         fg_load = fg_dict['load']
-        fg_ref = fg_dict['ref']
 
-        if fg_load % 2 != 0 or fg_amp % 2 != 0 or fg_ref % 2 != 0:
-            raise ValueError('fg_load=%d, fg_amp=%d, fg_ref=%d must all be even.' % (fg_load, fg_amp, fg_ref))
+        if fg_load % 2 != 0 or fg_amp % 2 != 0:
+            raise ValueError('fg_load=%d and fg_amp=%d must all be even.' % (fg_load, fg_amp))
 
         fg_half_pmos = fg_load // 2
         fg_half_nmos = fg_amp // 2
         fg_half = max(fg_half_pmos, fg_half_nmos)
-        # make sure gap between ref and load is even
-        fg_gap_pmos = fg_half - fg_half_pmos
-        fg_delta = 0 if fg_gap_pmos % 2 == 0 else 1
-        fg_tot = fg_half * 2 + fg_ref + 2 * (ndum + fg_delta)
+        fg_tot = (fg_half + ndum) * 2
 
         nw_list = [w_dict['amp']]
         pw_list = [w_dict['load']]
         nth_list = [intent_dict['amp']]
         pth_list = [intent_dict['load']]
 
-        tr_manager = TrackManager(self.grid, tr_widths, {})
-
-        hm_layer = self.get_mos_conn_layer(self.grid.tech_info) + 1
-        num_ng, ng_loc = tr_manager.place_wires(hm_layer, ['vin'])
-        num_pds, pds_loc = tr_manager.place_wires(hm_layer, ['vout'])
-        vout_nsp = tr_manager.get_space(hm_layer, 'vout')
-        num_pg, pg_loc = tr_manager.place_wires(hm_layer, ['ibias'])
-
-        ng_tracks = [num_ng]
-        nds_tracks = [vout_nsp]
-        pds_tracks = [num_pds]
-        pg_tracks = [vout_nsp + num_pg]
+        ng_tracks = [1]  # input track
+        nds_tracks = [1]  # one track for space
+        pds_tracks = [1]  # output track
+        pg_tracks = [1]  # bias track
 
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list,
                        nth_list, pw_list, pth_list,
@@ -116,13 +102,8 @@ class AmpCS(AnalogBase):
                        n_orientations=['R0'], p_orientations=['MX'],
                        )
 
-        vin_idx = ng_loc[0]
-        vout_idx = pds_loc[0]
-        ibias_idx = pg_loc[0]
-
-        ref_col = ndum
-        load_col = ndum + fg_ref + fg_delta + fg_half - fg_half_pmos
-        amp_col = ndum + fg_ref + fg_delta + fg_half - fg_half_nmos
+        load_col = ndum + fg_half - fg_half_pmos
+        amp_col = fg_half - fg_half_nmos
 
         if (fg_amp - fg_load) % 4 == 0:
             ampd, amps, nsdir, nddir = 'd', 's', 0, 2
@@ -131,28 +112,27 @@ class AmpCS(AnalogBase):
 
         amp_ports = self.draw_mos_conn('nch', 0, amp_col, fg_amp, nsdir, nddir)
         load_ports = self.draw_mos_conn('pch', 0, load_col, fg_load, 2, 0)
-        ref_ports = self.draw_mos_conn('pch', 0, ref_col, fg_ref, 2, 0)
 
-        vin_tid = self.make_track_id('nch', 0, 'g', vin_idx, width=tr_manager.get_width(hm_layer, 'vin'))
-        vout_tid = self.make_track_id('pch', 0, 'ds', vout_idx, width=tr_manager.get_width(hm_layer, 'vout'))
-        ibias_tid = self.make_track_id('pch', 0, 'g', ibias_idx, width=tr_manager.get_width(hm_layer, 'ibias'))
+        vin_tid = self.make_track_id('nch', 0, 'g', 0)
+        vout_tid = self.make_track_id('pch', 0, 'ds', 0)
+        vbias_tid = self.make_track_id('pch', 0, 'g', 0)
 
         vin_warr = self.connect_to_tracks(amp_ports['g'], vin_tid)
         vout_warr = self.connect_to_tracks([amp_ports[ampd], load_ports['d']], vout_tid)
-        ibias_warr = self.connect_to_tracks([ref_ports['g'], ref_ports['d'], load_ports['g']], ibias_tid)
+        vbias_warr = self.connect_to_tracks(load_ports['g'], vbias_tid)
         self.connect_to_substrate('ptap', amp_ports[amps])
-        self.connect_to_substrate('ntap', [ref_ports['s'], load_ports['s']])
+        self.connect_to_substrate('ntap', load_ports['s'])
 
-        ptap_wire_arrs, ntap_wire_arrs = self.fill_dummy()
+        vss_warrs, vdd_warrs = self.fill_dummy()
 
-        self.add_pin('VSS', ptap_wire_arrs, show=show_pins)
-        self.add_pin('VDD', ntap_wire_arrs, show=show_pins)
+        self.add_pin('VSS', vss_warrs, show=show_pins)
+        self.add_pin('VDD', vdd_warrs, show=show_pins)
         self.add_pin('vin', vin_warr, show=show_pins)
         self.add_pin('vout', vout_warr, show=show_pins)
-        self.add_pin('ibias', ibias_warr, show=show_pins)
+        self.add_pin('vbias', vbias_warr, show=show_pins)
 
         sch_fg_dict = fg_dict.copy()
-        sch_fg_dict['dump'] = fg_tot - fg_ref - fg_load
+        sch_fg_dict['dump'] = fg_tot - fg_load
         if ampd == 'd':
             sch_fg_dict['dumn_list'] = [fg_tot - fg_amp]
         else:
@@ -213,7 +193,6 @@ class AmpSFSoln(AnalogBase):
             ndum='number of dummies on each side.',
             ptap_w='NMOS substrate width, in meters/number of fins.',
             ntap_w='PMOS substrate width, in meters/number of fins.',
-            tr_widths='track width dictionary.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -228,37 +207,24 @@ class AmpSFSoln(AnalogBase):
         ndum = self.params['ndum']
         ptap_w = self.params['ptap_w']
         ntap_w = self.params['ntap_w']
-        tr_widths = self.params['tr_widths']
         show_pins = self.params['show_pins']
 
         fg_amp = fg_dict['amp']
         fg_bias = fg_dict['bias']
-        fg_ref = fg_dict['ref']
 
-        if fg_bias % 2 != 0 or fg_amp % 2 != 0 or fg_ref % 2 != 0:
-            raise ValueError('fg_bias=%d, fg_amp=%d, fg_ref=%d must all be even.' % (fg_bias, fg_amp, fg_ref))
+        if fg_bias % 2 != 0 or fg_amp % 2 != 0:
+            raise ValueError('fg_bias=%d and fg_amp=%d must all be even.' % (fg_bias, fg_amp))
 
         fg_half_bias = fg_bias // 2
         fg_half_amp = fg_amp // 2
         fg_half = max(fg_half_bias, fg_half_amp)
-        # make sure gap between ref and load is even
-        fg_gap_bias = fg_half - fg_half_bias
-        fg_delta = 0 if fg_gap_bias % 2 == 0 else 1
-        fg_tot = fg_half * 2 + fg_ref + 2 * (ndum + fg_delta)
+        fg_tot = (fg_half + ndum) * 2
 
         nw_list = [w_dict['bias'], w_dict['amp']]
         nth_list = [intent_dict['bias'], intent_dict['amp']]
 
-        tr_manager = TrackManager(self.grid, tr_widths, {})
-
-        hm_layer = self.get_mos_conn_layer(self.grid.tech_info) + 1
-        num_ngb, ngb_loc = tr_manager.place_wires(hm_layer, ['ibias'])
-        num_ndsb, ndsb_loc = tr_manager.place_wires(hm_layer, ['vout'])
-        vout_nsp = tr_manager.get_space(hm_layer, 'vout')
-        num_nga, nga_loc = tr_manager.place_wires(hm_layer, ['VDD', 'vin'])
-
-        ng_tracks = [num_ngb + vout_nsp, num_nga]
-        nds_tracks = [num_ndsb, vout_nsp]
+        ng_tracks = [1, 3]
+        nds_tracks = [1, 1]
 
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list,
                        nth_list, [], [],
@@ -266,15 +232,8 @@ class AmpSFSoln(AnalogBase):
                        pg_tracks=[], pds_tracks=[],
                        n_orientations=['R0', 'MX'],
                        )
-
-        ibias_idx = ngb_loc[0]
-        vout_idx = ndsb_loc[0]
-        vdd_idx = nga_loc[0]
-        vin_idx = nga_loc[1]
-
-        ref_col = ndum
-        bias_col = ndum + fg_ref + fg_delta + fg_half - fg_half_bias
-        amp_col = ndum + fg_ref + fg_delta + fg_half - fg_half_amp
+        bias_col = ndum + fg_half - fg_half_bias
+        amp_col = ndum + fg_half - fg_half_amp
 
         if (fg_amp - fg_bias) % 4 == 0:
             ampd, amps, nsdir, nddir = 'd', 's', 2, 0
@@ -283,29 +242,28 @@ class AmpSFSoln(AnalogBase):
 
         amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir)
         bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2)
-        ref_ports = self.draw_mos_conn('nch', 0, ref_col, fg_ref, 0, 2)
 
-        vin_tid = self.make_track_id('nch', 1, 'g', vin_idx, width=tr_manager.get_width(hm_layer, 'vin'))
-        vout_tid = self.make_track_id('nch', 0, 'ds', vout_idx, width=tr_manager.get_width(hm_layer, 'vout'))
-        ibias_tid = self.make_track_id('nch', 0, 'g', ibias_idx, width=tr_manager.get_width(hm_layer, 'ibias'))
-        vdd_tid = self.make_track_id('nch', 1, 'g', vdd_idx, width=tr_manager.get_width(hm_layer, 'ibias'))
+        vdd_tid = self.make_track_id('nch', 1, 'g', 0)
+        vin_tid = self.make_track_id('nch', 1, 'g', 2)
+        vout_tid = self.make_track_id('nch', 0, 'ds', 0)
+        vbias_tid = self.make_track_id('nch', 0, 'g', 0)
 
         vin_warr = self.connect_to_tracks(amp_ports['g'], vin_tid)
         vout_warr = self.connect_to_tracks([amp_ports[ampd], bias_ports['d']], vout_tid)
-        ibias_warr = self.connect_to_tracks([ref_ports['g'], ref_ports['d'], bias_ports['g']], ibias_tid)
+        vbias_warr = self.connect_to_tracks(bias_ports['g'], vbias_tid)
         vdd_warr = self.connect_to_tracks(amp_ports[amps], vdd_tid)
-        self.connect_to_substrate('ptap', [ref_ports['s'], bias_ports['s']])
+        self.connect_to_substrate('ptap', bias_ports['s'])
 
-        ptap_wire_arrs, _ = self.fill_dummy()
+        vss_warrs, _ = self.fill_dummy()
 
-        self.add_pin('VSS', ptap_wire_arrs, show=show_pins)
+        self.add_pin('VSS', vss_warrs, show=show_pins)
         self.add_pin('VDD', vdd_warr, show=show_pins)
         self.add_pin('vin', vin_warr, show=show_pins)
         self.add_pin('vout', vout_warr, show=show_pins)
-        self.add_pin('ibias', ibias_warr, show=show_pins)
+        self.add_pin('vbias', vbias_warr, show=show_pins)
 
         sch_fg_dict = fg_dict.copy()
-        sch_fg_dict['dum_list'] = [fg_tot - fg_ref - fg_bias, fg_tot - fg_amp - 2, 2]
+        sch_fg_dict['dum_list'] = [fg_tot - fg_bias, fg_tot - fg_amp - 2, 2]
 
         self._sch_params = dict(
             lch=lch,
@@ -358,7 +316,6 @@ class AmpChainSoln(TemplateBase):
         return dict(
             cs_params='common source amplifier parameters.',
             sf_params='source follower parameters.',
-            tr_widths='track width dictionary.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -368,15 +325,9 @@ class AmpChainSoln(TemplateBase):
 
         cs_params = self.params['cs_params'].copy()
         sf_params = self.params['sf_params'].copy()
-        tr_widths = self.params['tr_widths']
         show_pins = self.params['show_pins']
 
-        tr_manager = TrackManager(self.grid, tr_widths, {})
-
-        cs_params['tr_widths'] = tr_widths
         cs_params['show_pins'] = False
-
-        sf_params['tr_widths'] = tr_widths
         sf_params['show_pins'] = False
 
         cs_master = self.new_template(params=cs_params, temp_cls=AmpCS)
@@ -404,29 +355,26 @@ class AmpChainSoln(TemplateBase):
 
         self.add_pin('VSS', self.connect_wires([cs_vss_warr, sf_vss_warr]), show=show_pins)
         self.reexport(cs_inst.get_port('vin'), show=show_pins)
-        self.reexport(cs_inst.get_port('ibias'), net_name='ib1', show=show_pins)
+        self.reexport(cs_inst.get_port('vbias'), net_name='vb1', show=show_pins)
         self.reexport(sf_inst.get_port('vout'), show=show_pins)
-        self.reexport(sf_inst.get_port('ibias'), net_name='ib2', show=show_pins)
+        self.reexport(sf_inst.get_port('vbias'), net_name='vb2', show=show_pins)
 
         vmid0 = cs_inst.get_all_port_pins('vout')[0]
         vmid1 = sf_inst.get_all_port_pins('vin')[0]
         vdd0 = cs_inst.get_all_port_pins('VDD')[0]
         vdd1 = sf_inst.get_all_port_pins('VDD')[0]
 
-        mid_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, x0, unit_mode=True),
-                          width=tr_manager.get_width(vm_layer, 'vin'))
+        mid_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, x0, unit_mode=True))
         vmid = self.connect_to_tracks([vmid0, vmid1], mid_tid)
         self.add_pin('vmid', vmid, show=show_pins)
 
-        vdd_w_vm = tr_manager.get_width(vm_layer, 'VDD')
-        vdd_w_top = tr_manager.get_width(top_layer, 'VDD')
-        vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle), width=vdd_w_vm)
-        vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle), width=vdd_w_vm)
+        vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle))
+        vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle))
 
         vdd0 = self.connect_to_tracks(vdd0, vdd0_tid)
         vdd1 = self.connect_to_tracks(vdd1, vdd1_tid)
-        vdd_tidx = self.grid.get_num_tracks(self.size, top_layer) - (vdd_w_top + 1) / 2
-        vdd_tid = TrackID(top_layer, vdd_tidx, width=vdd_w_top)
+        vdd_tidx = self.grid.get_num_tracks(self.size, top_layer) - 1
+        vdd_tid = TrackID(top_layer, vdd_tidx)
         vdd = self.connect_to_tracks([vdd0, vdd1], vdd_tid)
         self.add_pin('VDD', vdd, show=show_pins)
 

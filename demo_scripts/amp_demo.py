@@ -228,7 +228,7 @@ if __name__ == '__main__':
     # define specifications file location
     spec_fname = 'demo_specs/demo.yaml'
     # other parameters
-    cur_dsn_name = 'amp_sf'
+    cur_dsn_name = 'amp_cs'
     run_lvs = True
 
     # load specifications from file

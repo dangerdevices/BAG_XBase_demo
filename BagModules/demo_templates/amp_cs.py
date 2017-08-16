@@ -79,12 +79,10 @@ class demo_templates__amp_cs(Module):
 
         fg_amp = fg_dict['amp']
         fg_load = fg_dict['load']
-        fg_ref = fg_dict['ref']
         fg_dump = fg_dict['dump']
         fg_dumn_list = fg_dict['dumn_list']
 
         self.instances['XP'].design(w=wp, l=lch, intent=intentp, nf=fg_load)
-        self.instances['XREF'].design(w=wp, l=lch, intent=intentp, nf=fg_ref)
         self.instances['XPD'].design(w=wp, l=lch, intent=intentp, nf=fg_dump)
         self.instances['XN'].design(w=wn, l=lch, intent=intentn, nf=fg_amp)
 

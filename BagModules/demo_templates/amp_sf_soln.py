@@ -79,12 +79,10 @@ class demo_templates__amp_sf_soln(Module):
 
         fg_amp = fg_dict['amp']
         fg_bias = fg_dict['bias']
-        fg_ref = fg_dict['ref']
         fg_dum_list = fg_dict['dum_list']
 
         self.instances['XAMP'].design(w=wa, l=lch, intent=intenta, nf=fg_amp)
         self.instances['XBIAS'].design(w=wb, l=lch, intent=intentb, nf=fg_bias)
-        self.instances['XREF'].design(w=wb, l=lch, intent=intentb, nf=fg_ref)
 
         num_dummies = len(fg_dum_list)
         name_list = ['XDUM%d' % idx for idx in range(num_dummies)]

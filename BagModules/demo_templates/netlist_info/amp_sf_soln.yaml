@@ -1,6 +1,6 @@
 lib_name: demo_templates
 cell_name: amp_sf_soln
-pins: [ "VDD", "VSS", "vout", "vin", "ibias" ]
+pins: [ "VDD", "VSS", "vout", "vin", "vbias" ]
 instances:
   XDUM:
     lib_name: BAG_prim
@@ -22,26 +22,6 @@ instances:
         direction: inputOutput
         net_name: "VSS"
         num_bits: 1
-  XREF:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "ibias"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "ibias"
-        num_bits: 1
   XBIAS:
     lib_name: BAG_prim
     cell_name: nmos4_standard
@@ -60,7 +40,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "ibias"
+        net_name: "vbias"
         num_bits: 1
   XAMP:
     lib_name: BAG_prim

@@ -4,7 +4,8 @@ from __future__ import (absolute_import, division,
 # noinspection PyUnresolvedReferences,PyCompatibility
 from builtins import *
 
-from bag.layout.routing import TrackManager
+from bag.layout.routing import TrackManager, TrackID
+from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core import AnalogBase
 
@@ -311,4 +312,125 @@ class AmpSFSoln(AnalogBase):
             w_dict=w_dict,
             intent_dict=intent_dict,
             fg_dict=sch_fg_dict,
+        )
+
+
+class AmpChainSoln(TemplateBase):
+    """A template of a single transistor with dummies.
+
+    This class is mainly used for transistor characterization or
+    design exploration with config views.
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : dict[str, any]
+        the parameter values.
+    used_names : set[str]
+        a set of already used cell names.
+    kwargs : dict[str, any]
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        super(AmpChainSoln, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        """Returns a dictionary containing parameter descriptions.
+
+        Override this method to return a dictionary from parameter names to descriptions.
+
+        Returns
+        -------
+        param_info : dict[str, str]
+            dictionary from parameter name to description.
+        """
+        return dict(
+            cs_params='common source amplifier parameters.',
+            sf_params='source follower parameters.',
+            tr_widths='track width dictionary.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    def draw_layout(self):
+        """Draw the layout of a transistor for characterization.
+        """
+
+        cs_params = self.params['cs_params'].copy()
+        sf_params = self.params['sf_params'].copy()
+        tr_widths = self.params['tr_widths']
+        show_pins = self.params['show_pins']
+
+        tr_manager = TrackManager(self.grid, tr_widths, {})
+
+        cs_params['tr_widths'] = tr_widths
+        cs_params['show_pins'] = False
+
+        sf_params['tr_widths'] = tr_widths
+        sf_params['show_pins'] = False
+
+        cs_master = self.new_template(params=cs_params, temp_cls=AmpCS)
+        sf_master = self.new_template(params=sf_params, temp_cls=AmpSFSoln)
+
+        cs_inst = self.add_instance(cs_master, 'XCS')
+        x0 = cs_inst.bound_box.right_unit
+        sf_inst = self.add_instance(sf_master, 'XSF', loc=(x0, 0), unit_mode=True)
+
+        # get VSS wires from AmpCS/AmpSF
+        cs_vss_warr = cs_inst.get_all_port_pins('VSS')[0]
+        sf_vss_warrs = sf_inst.get_all_port_pins('VSS')
+        if sf_vss_warrs[0].track_id.base_index < sf_vss_warrs[1].track_id.base_index:
+            sf_vss_warr = sf_vss_warrs[0]
+        else:
+            sf_vss_warr = sf_vss_warrs[1]
+
+        hm_layer = cs_vss_warr.layer_id
+        vm_layer = hm_layer + 1
+        top_layer = vm_layer + 1
+
+        tot_box = cs_inst.bound_box.merge(sf_inst.bound_box)
+        self.set_size_from_bound_box(top_layer, tot_box, round_up=True)
+        self.array_box = self.bound_box
+
+        self.add_pin('VSS', self.connect_wires([cs_vss_warr, sf_vss_warr]), show=show_pins)
+        self.reexport(cs_inst.get_port('vin'), show=show_pins)
+        self.reexport(cs_inst.get_port('ibias'), net_name='ib1', show=show_pins)
+        self.reexport(sf_inst.get_port('vout'), show=show_pins)
+        self.reexport(sf_inst.get_port('ibias'), net_name='ib2', show=show_pins)
+
+        vmid0 = cs_inst.get_all_port_pins('vout')[0]
+        vmid1 = sf_inst.get_all_port_pins('vin')[0]
+        vdd0 = cs_inst.get_all_port_pins('VDD')[0]
+        vdd1 = sf_inst.get_all_port_pins('VDD')[0]
+
+        mid_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, x0, unit_mode=True),
+                          width=tr_manager.get_width(vm_layer, 'vin'))
+        vmid = self.connect_to_tracks([vmid0, vmid1], mid_tid)
+        self.add_pin('vmid', vmid, show=show_pins)
+
+        vdd_w_vm = tr_manager.get_width(vm_layer, 'VDD')
+        vdd_w_top = tr_manager.get_width(top_layer, 'VDD')
+        vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle), width=vdd_w_vm)
+        vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle), width=vdd_w_vm)
+
+        vdd0 = self.connect_to_tracks(vdd0, vdd0_tid)
+        vdd1 = self.connect_to_tracks(vdd1, vdd1_tid)
+        vdd_tidx = self.grid.get_num_tracks(self.size, top_layer) - (vdd_w_top + 1) / 2
+        vdd_tid = TrackID(top_layer, vdd_tidx, width=vdd_w_top)
+        vdd = self.connect_to_tracks([vdd0, vdd1], vdd_tid)
+        self.add_pin('VDD', vdd, show=show_pins)
+
+        self._sch_params = dict(
+            cs_params=cs_master.sch_params,
+            sf_params=sf_master.sch_params,
         )

@@ -1,6 +1,6 @@
 lib_name: demo_templates
 cell_name: amp_chain_soln
-pins: [ "vout", "ib1", "ib2", "VDD", "VSS", "mid", "vin" ]
+pins: [ "vout", "ib1", "ib2", "VDD", "VSS", "vmid", "vin" ]
 instances:
   XCS:
     lib_name: demo_templates
@@ -12,7 +12,7 @@ instances:
         num_bits: 1
       vout:
         direction: output
-        net_name: "mid"
+        net_name: "vmid"
         num_bits: 1
       VSS:
         direction: inputOutput
@@ -32,7 +32,7 @@ instances:
     instpins:
       vin:
         direction: input
-        net_name: "mid"
+        net_name: "vmid"
         num_bits: 1
       vout:
         direction: output

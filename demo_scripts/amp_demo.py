@@ -86,6 +86,7 @@ def gen_schematics(prj, specs, dsn_name, sch_params, check_lvs=False):
             raise ValueError('LVS failed.  check log file: %s' % lvs_log)
         else:
             print('lvs passed')
+            print('lvs log is ' + lvs_log)
 
     for name, info in testbenches.items():
         tb_lib = info['tb_lib']
@@ -207,7 +208,7 @@ def plot_data(results_dict):
 
 if __name__ == '__main__':
     spec_fname = 'demo_specs/demo.yaml'
-    cur_dsn_name = 'amp_sf'
+    cur_dsn_name = 'amp_chain'
     run_lvs = True
 
     top_specs = read_yaml(spec_fname)
@@ -217,8 +218,8 @@ if __name__ == '__main__':
 
     dsn_sch_params = gen_layout(bprj, top_specs, cur_dsn_name)
     gen_schematics(bprj, top_specs, cur_dsn_name, dsn_sch_params, check_lvs=run_lvs)
-    simulate(bprj, top_specs, cur_dsn_name)
+    # simulate(bprj, top_specs, cur_dsn_name)
     # """
 
-    res_dict = load_sim_data(top_specs, cur_dsn_name)
-    plot_data(res_dict)
+    # res_dict = load_sim_data(top_specs, cur_dsn_name)
+    # plot_data(res_dict)

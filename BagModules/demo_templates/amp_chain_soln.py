@@ -43,10 +43,14 @@ class demo_templates__amp_chain_soln(Module):
     Fill in high level description here.
     """
 
+    param_list = ['cs_params', 'sf_params', ]
+
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        for par in self.param_list:
+            self.parameters[par] = None
 
-    def design(self):
+    def design(self, cs_params=None, sf_params=None):
         """To be overridden by subclasses to design this module.
 
         This method should fill in values for all parameters in
@@ -62,7 +66,14 @@ class demo_templates__amp_chain_soln(Module):
         restore_instance()
         array_instance()
         """
-        pass
+        local_dict = locals()
+        for name in self.param_list:
+            if name not in local_dict:
+                raise ValueError('Parameter %s not specified.' % name)
+            self.parameters[name] = local_dict[name]
+
+        self.instances['XCS'].design(**cs_params)
+        self.instances['XSF'].design(**sf_params)
 
     def get_layout_params(self, **kwargs):
         """Returns a dictionary with layout parameters.

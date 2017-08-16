@@ -103,7 +103,7 @@ class AmpCS(AnalogBase):
                        )
 
         load_col = ndum + fg_half - fg_half_pmos
-        amp_col = fg_half - fg_half_nmos
+        amp_col = ndum + fg_half - fg_half_nmos
 
         if (fg_amp - fg_load) % 4 == 0:
             ampd, amps, nsdir, nddir = 'd', 's', 0, 2

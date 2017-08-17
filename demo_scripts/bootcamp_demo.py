@@ -240,13 +240,24 @@ def plot_data(results_dict):
 
     plt.show()
 
+def run_flow(prj, specs, dsn_name):
+    run_lvs = True
+
+    # generate layout, get schematic parameters from layout
+    dsn_sch_params = gen_layout(prj, specs, dsn_name)
+    # generate design/testbench schematics
+    gen_schematics(prj, specs, dsn_name, dsn_sch_params, check_lvs=run_lvs)
+    # run simulation and import results
+    simulate(prj, specs, dsn_name)
+
+    # load simulation results from save file
+    res_dict = load_sim_data(specs, dsn_name)
+    # post-process simulation results
+    plot_data(res_dict)
+
 
 if __name__ == '__main__':
-    # define specifications file location
     spec_fname = 'demo_specs/demo.yaml'
-    # other parameters
-    cur_dsn_name = 'amp_cs'
-    run_lvs = True
 
     # load specifications from file
     top_specs = read_yaml(spec_fname)
@@ -260,18 +271,7 @@ if __name__ == '__main__':
         print('creating BagProject')
         bprj = BagProject()
 
-    routing_demo(bprj, top_specs)
-
-    """
-    # generate layout, get schematic parameters from layout
-    dsn_sch_params = gen_layout(bprj, top_specs, cur_dsn_name)
-    # generate design/testbench schematics
-    gen_schematics(bprj, top_specs, cur_dsn_name, dsn_sch_params, check_lvs=run_lvs)
-    # run simulation and import results
-    simulate(bprj, top_specs, cur_dsn_name)
-
-    # load simulation results from save file
-    res_dict = load_sim_data(top_specs, cur_dsn_name)
-    # post-process simulation results
-    plot_data(res_dict)
-    """
+    # routing_demo(bprj, top_specs)
+    run_flow(bprj, top_specs, 'amp_cs')
+    # run_flow(bprj, top_specs, 'amp_sf')
+    # run_flow(bprj, top_specs, 'amp_chain')

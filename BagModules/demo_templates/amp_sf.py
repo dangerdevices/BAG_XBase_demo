@@ -33,12 +33,12 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'amp_sf_soln.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'amp_sf.yaml'))
 
 
 # noinspection PyPep8Naming
-class demo_templates__amp_sf_soln(Module):
-    """Module for library demo_templates cell amp_sf_soln.
+class demo_templates__amp_sf(Module):
+    """Module for library demo_templates cell amp_sf.
 
     Fill in high level description here.
     """
@@ -72,18 +72,12 @@ class demo_templates__amp_sf_soln(Module):
                 raise ValueError('Parameter %s not specified.' % name)
             self.parameters[name] = local_dict[name]
 
-        w_amp = w_dict['amp']
-        w_bias = w_dict['bias']
-        intent_amp = intent_dict['amp']
-        intent_bias = intent_dict['bias']
+        # TODO: design XAMP and XBIAS transistors
+        fg_amp = fg_bias = None
+        w_amp = w_bias = None
+        intent_amp = intent_bias = None
 
-        fg_amp = fg_dict['amp']
-        fg_bias = fg_dict['bias']
-
-        self.instances['XAMP'].design(w=w_amp, l=lch, intent=intent_amp, nf=fg_amp)
-        self.instances['XBIAS'].design(w=w_bias, l=lch, intent=intent_bias, nf=fg_bias)
-
-        # design dummies
+        # algorithm for drawing dummies
         fg_dum_list = fg_dict['dum_list']
         num_dummies = len(fg_dum_list)
         name_list = ['XDUM%d' % idx for idx in range(num_dummies)]

@@ -33,24 +33,24 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'amp_sf_soln.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'amp_chain.yaml'))
 
 
 # noinspection PyPep8Naming
-class demo_templates__amp_sf_soln(Module):
-    """Module for library demo_templates cell amp_sf_soln.
+class demo_templates__amp_chain(Module):
+    """Module for library demo_templates cell amp_chain.
 
     Fill in high level description here.
     """
 
-    param_list = ['lch', 'w_dict', 'intent_dict', 'fg_dict', ]
+    param_list = ['cs_params', 'sf_params', ]
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         for par in self.param_list:
             self.parameters[par] = None
 
-    def design(self, lch=18e-9, w_dict=None, intent_dict=None, fg_dict=None):
+    def design(self, cs_params=None, sf_params=None):
         """To be overridden by subclasses to design this module.
 
         This method should fill in values for all parameters in
@@ -72,31 +72,8 @@ class demo_templates__amp_sf_soln(Module):
                 raise ValueError('Parameter %s not specified.' % name)
             self.parameters[name] = local_dict[name]
 
-        w_amp = w_dict['amp']
-        w_bias = w_dict['bias']
-        intent_amp = intent_dict['amp']
-        intent_bias = intent_dict['bias']
-
-        fg_amp = fg_dict['amp']
-        fg_bias = fg_dict['bias']
-
-        self.instances['XAMP'].design(w=w_amp, l=lch, intent=intent_amp, nf=fg_amp)
-        self.instances['XBIAS'].design(w=w_bias, l=lch, intent=intent_bias, nf=fg_bias)
-
-        # design dummies
-        fg_dum_list = fg_dict['dum_list']
-        num_dummies = len(fg_dum_list)
-        name_list = ['XDUM%d' % idx for idx in range(num_dummies)]
-
-        if (fg_amp - fg_bias) % 4 == 0:
-            term_list = [{}, {}, dict(D='VDD')]
-        else:
-            term_list = [{}, {}, dict(D='vout')]
-
-        self.array_instance('XDUM', name_list, term_list=term_list)
-        self.instances['XDUM'][0].design(w=w_bias, l=lch, intent=intent_bias, nf=fg_dum_list[0])
-        self.instances['XDUM'][1].design(w=w_amp, l=lch, intent=intent_amp, nf=fg_dum_list[1])
-        self.instances['XDUM'][2].design(w=w_amp, l=lch, intent=intent_amp, nf=fg_dum_list[2])
+        self.instances['XCS'].design(**cs_params)
+        # TODO: design XSF
 
     def get_layout_params(self, **kwargs):
         """Returns a dictionary with layout parameters.

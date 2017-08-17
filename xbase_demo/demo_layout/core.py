@@ -105,26 +105,7 @@ class RoutingDemo(TemplateBase):
 
 
 class AmpCS(AnalogBase):
-    """A template of a single transistor with dummies.
-
-    This class is mainly used for transistor characterization or
-    design exploration with config views.
-
-    Parameters
-    ----------
-    temp_db : :class:`bag.layout.template.TemplateDB`
-            the template database.
-    lib_name : str
-        the layout library name.
-    params : dict[str, any]
-        the parameter values.
-    used_names : set[str]
-        a set of already used cell names.
-    kwargs : dict[str, any]
-        dictionary of optional parameters.  See documentation of
-        :class:`bag.layout.template.TemplateBase` for details.
-    """
-
+    """A common source amplifier."""
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         super(AmpCS, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
@@ -174,47 +155,62 @@ class AmpCS(AnalogBase):
         if fg_load % 2 != 0 or fg_amp % 2 != 0:
             raise ValueError('fg_load=%d and fg_amp=%d must all be even.' % (fg_load, fg_amp))
 
+        # compute total number of fingers in each row
         fg_half_pmos = fg_load // 2
         fg_half_nmos = fg_amp // 2
         fg_half = max(fg_half_pmos, fg_half_nmos)
         fg_tot = (fg_half + ndum) * 2
 
+        # specify width/threshold of each row
         nw_list = [w_dict['amp']]
         pw_list = [w_dict['load']]
         nth_list = [intent_dict['amp']]
         pth_list = [intent_dict['load']]
 
+        # specify number of horizontal tracks for each row
         ng_tracks = [1]  # input track
         nds_tracks = [1]  # one track for space
         pds_tracks = [1]  # output track
         pg_tracks = [1]  # bias track
 
+        # specify row orientations
+        n_orient = ['R0'] # gate connection on bottom
+        p_orient = ['MX'] # gate connection on top
+
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list,
                        nth_list, pw_list, pth_list,
                        ng_tracks=ng_tracks, nds_tracks=nds_tracks,
                        pg_tracks=pg_tracks, pds_tracks=pds_tracks,
-                       n_orientations=['R0'], p_orientations=['MX'],
+                       n_orientations=n_orient, p_orientations=p_orient,
                        )
 
+        # figure out if output connects to drain or source of nmos
+        if (fg_amp - fg_load) % 4 == 0:
+            aout, aoutb, nsdir, nddir = 'd', 's', 0, 2
+        else:
+            aout, aoutb, nsdir, nddir = 's', 'd', 2, 0
+
+        # create transistor connections
         load_col = ndum + fg_half - fg_half_pmos
         amp_col = ndum + fg_half - fg_half_nmos
-
-        if (fg_amp - fg_load) % 4 == 0:
-            ampd, amps, nsdir, nddir = 'd', 's', 0, 2
-        else:
-            ampd, amps, nsdir, nddir = 's', 'd', 2, 0
-
         amp_ports = self.draw_mos_conn('nch', 0, amp_col, fg_amp, nsdir, nddir)
         load_ports = self.draw_mos_conn('pch', 0, load_col, fg_load, 2, 0)
+        # amp_ports/load_ports are dictionaries of WireArrays representing
+        # transistor ports.
+        print(amp_ports)
+        print(amp_ports['g'])
 
+        # create TrackID from relative track index
         vin_tid = self.make_track_id('nch', 0, 'g', 0)
         vout_tid = self.make_track_id('pch', 0, 'ds', 0)
         vbias_tid = self.make_track_id('pch', 0, 'g', 0)
+        # can also convert from relative to absolute track index
+        print(self.get_track_index('nch', 0, 'g', 0))
 
         vin_warr = self.connect_to_tracks(amp_ports['g'], vin_tid)
-        vout_warr = self.connect_to_tracks([amp_ports[ampd], load_ports['d']], vout_tid)
+        vout_warr = self.connect_to_tracks([amp_ports[aout], load_ports['d']], vout_tid)
         vbias_warr = self.connect_to_tracks(load_ports['g'], vbias_tid)
-        self.connect_to_substrate('ptap', amp_ports[amps])
+        self.connect_to_substrate('ptap', amp_ports[aoutb])
         self.connect_to_substrate('ntap', load_ports['s'])
 
         vss_warrs, vdd_warrs = self.fill_dummy()
@@ -225,9 +221,10 @@ class AmpCS(AnalogBase):
         self.add_pin('vout', vout_warr, show=show_pins)
         self.add_pin('vbias', vbias_warr, show=show_pins)
 
+        # compute schematic parameters
         sch_fg_dict = fg_dict.copy()
         sch_fg_dict['dump'] = fg_tot - fg_load
-        if ampd == 'd':
+        if aout == 'd':
             sch_fg_dict['dumn_list'] = [fg_tot - fg_amp]
         else:
             sch_fg_dict['dumn_list'] = [fg_tot - fg_amp - 2, 2]

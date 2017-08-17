@@ -486,6 +486,133 @@ class AmpSFSoln(AnalogBase):
         )
 
 
+class AmpChain(TemplateBase):
+    """A template of a single transistor with dummies.
+
+    This class is mainly used for transistor characterization or
+    design exploration with config views.
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : dict[str, any]
+        the parameter values.
+    used_names : set[str]
+        a set of already used cell names.
+    kwargs : dict[str, any]
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        super(AmpChain, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        """Returns a dictionary containing parameter descriptions.
+
+        Override this method to return a dictionary from parameter names to descriptions.
+
+        Returns
+        -------
+        param_info : dict[str, str]
+            dictionary from parameter name to description.
+        """
+        return dict(
+            cs_params='common source amplifier parameters.',
+            sf_params='source follower parameters.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    def draw_layout(self):
+        """Draw the layout of a transistor for characterization.
+        """
+
+        cs_params = self.params['cs_params'].copy()
+        sf_params = self.params['sf_params'].copy()
+        show_pins = self.params['show_pins']
+
+        cs_params['show_pins'] = False
+        sf_params['show_pins'] = False
+
+        # create layout masters for subcells we will add later
+        cs_master = self.new_template(params=cs_params, temp_cls=AmpCS)
+        # TODO: create sf_master
+        sf_master = None
+
+        # add subcell instances
+        cs_inst = self.add_instance(cs_master, 'XCS')
+        # add source follower to the right of common source
+        x0 = cs_inst.bound_box.right_unit
+        sf_inst = self.add_instance(sf_master, 'XSF', loc=(x0, 0), unit_mode=True)
+
+        # get VSS wires from AmpCS/AmpSF
+        cs_vss_warr = cs_inst.get_all_port_pins('VSS')[0]
+        sf_vss_warrs = sf_inst.get_all_port_pins('VSS')
+        # only connect bottom VSS wire of source follower
+        if sf_vss_warrs[0].track_id.base_index < sf_vss_warrs[1].track_id.base_index:
+            sf_vss_warr = sf_vss_warrs[0]
+        else:
+            sf_vss_warr = sf_vss_warrs[1]
+
+        # connect VSS of the two blocks together
+        vss = self.connect_wires([cs_vss_warr, sf_vss_warr])
+
+        # get layer IDs from VSS wire
+        hm_layer = vss.layer_id
+        vm_layer = hm_layer + 1
+        top_layer = vm_layer + 1
+
+        # calculate template size
+        tot_box = cs_inst.bound_box.merge(sf_inst.bound_box)
+        self.set_size_from_bound_box(top_layer, tot_box, round_up=True)
+
+        # get subcell ports as WireArrays so we can connect them
+        vmid0 = cs_inst.get_all_port_pins('vout')[0]
+        vmid1 = sf_inst.get_all_port_pins('vin')[0]
+        vdd0 = cs_inst.get_all_port_pins('VDD')[0]
+        vdd1 = sf_inst.get_all_port_pins('VDD')[0]
+
+        # get vertical VDD TrackIDs
+        vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle))
+        vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle))
+
+        # connect VDD of each block to vertical M5
+        vdd0 = self.connect_to_tracks(vdd0, vdd0_tid)
+        vdd1 = self.connect_to_tracks(vdd1, vdd1_tid)
+        # connect M5 VDD to top M6 horizontal track
+        vdd_tidx = self.grid.get_num_tracks(self.size, top_layer) - 1
+        vdd_tid = TrackID(top_layer, vdd_tidx)
+        vdd = self.connect_to_tracks([vdd0, vdd1], vdd_tid)
+
+        # TODO: connect vmid0 and vmid1 to vertical track in the middle of two templates
+        vmid = None
+
+        # add pins on wires
+        self.add_pin('vmid', vmid, show=show_pins)
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
+        # re-export pins on subcells.
+        self.reexport(cs_inst.get_port('vin'), show=show_pins)
+        self.reexport(cs_inst.get_port('vbias'), net_name='vb1', show=show_pins)
+        # TODO: reexport vout and vbias of source follower
+        # TODO: vbias should be renamed to vb2
+
+        # compute schematic parameters.
+        self._sch_params = dict(
+            cs_params=cs_master.sch_params,
+            sf_params=sf_master.sch_params,
+        )
+
+
 class AmpChainSoln(TemplateBase):
     """A template of a single transistor with dummies.
 
@@ -580,10 +707,6 @@ class AmpChainSoln(TemplateBase):
         vdd0 = cs_inst.get_all_port_pins('VDD')[0]
         vdd1 = sf_inst.get_all_port_pins('VDD')[0]
 
-        # connect vmid using vertical track in the middle of the two templates
-        mid_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, x0, unit_mode=True))
-        vmid = self.connect_to_tracks([vmid0, vmid1], mid_tid)
-
         # get vertical VDD TrackIDs
         vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle))
         vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle))
@@ -595,6 +718,10 @@ class AmpChainSoln(TemplateBase):
         vdd_tidx = self.grid.get_num_tracks(self.size, top_layer) - 1
         vdd_tid = TrackID(top_layer, vdd_tidx)
         vdd = self.connect_to_tracks([vdd0, vdd1], vdd_tid)
+
+        # connect vmid using vertical track in the middle of the two templates
+        mid_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, x0, unit_mode=True))
+        vmid = self.connect_to_tracks([vmid0, vmid1], mid_tid)
 
         # add pins on wires
         self.add_pin('vmid', vmid, show=show_pins)

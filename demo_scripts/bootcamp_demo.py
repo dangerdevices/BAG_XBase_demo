@@ -13,6 +13,8 @@ from bag.layout.routing import RoutingGrid
 from bag.layout.template import TemplateDB
 from bag.data import load_sim_results, save_sim_results, load_sim_file
 
+from xbase_demo.demo_layout.core import RoutingDemo
+
 
 def make_tdb(prj, specs, impl_lib):
     grid_specs = specs['routing_grid']
@@ -43,6 +45,21 @@ def gen_pwl_data(fname):
     with open(fname, 'w') as f:
         for t, y in zip(tvec, yvec):
             f.write('%.4g %.4g\n' % (t, y))
+
+
+def routing_demo(prj, specs):
+    impl_lib = 'DEMO_ROUTING'
+
+    # create layout template database
+    tdb = make_tdb(prj, specs, impl_lib)
+    # compute layout
+    print('computing layout')
+    template = tdb.new_template(params={}, temp_cls=RoutingDemo)
+    # create layout in OA database
+    print('creating layout')
+    tdb.batch_layout(prj, [template], ['ROUTING_DEMO'])
+    # return corresponding schematic parameters
+    print('layout done')
 
 
 def gen_layout(prj, specs, dsn_name):
@@ -235,8 +252,17 @@ if __name__ == '__main__':
     top_specs = read_yaml(spec_fname)
 
     # create BagProject object
-    bprj = BagProject()
+    local_dict = locals()
+    if 'bprj' in local_dict:
+        print('using existing BagProject')
+        bprj = local_dict['bprj']
+    else:
+        print('creating BagProject')
+        bprj = BagProject()
 
+    routing_demo(bprj, top_specs)
+
+    """
     # generate layout, get schematic parameters from layout
     dsn_sch_params = gen_layout(bprj, top_specs, cur_dsn_name)
     # generate design/testbench schematics
@@ -248,3 +274,4 @@ if __name__ == '__main__':
     res_dict = load_sim_data(top_specs, cur_dsn_name)
     # post-process simulation results
     plot_data(res_dict)
+    """

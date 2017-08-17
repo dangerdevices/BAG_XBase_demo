@@ -10,6 +10,86 @@ from bag.layout.template import TemplateBase
 from abs_templates_ec.analog_core import AnalogBase
 
 
+class RoutingDemo(TemplateBase):
+    """A template of a single transistor with dummies.
+
+    This class is mainly used for transistor characterization or
+    design exploration with config views.
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : dict[str, any]
+        the parameter values.
+    used_names : set[str]
+        a set of already used cell names.
+    kwargs : dict[str, any]
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        super(RoutingDemo, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+
+    @classmethod
+    def get_params_info(cls):
+        """Returns a dictionary containing parameter descriptions.
+
+        Override this method to return a dictionary from parameter names to descriptions.
+
+        Returns
+        -------
+        param_info : dict[str, str]
+            dictionary from parameter name to description.
+        """
+        return {}
+
+    def draw_layout(self):
+        """Draw the layout of a transistor for characterization.
+        """
+
+        # Metal 4 is horizontal, Metal 5 is vertical
+        hm_layer = 4
+        vm_layer = 5
+
+        # add a wire at layer 4, track 0, from X=0.1 to X=0.3
+        warr1 = self.add_wires(hm_layer, 0, 0.1, 0.3)
+        # print WireArray object
+        print(warr1)
+        # print TrackID object associated with WireArray
+        print(warr1.track_id)
+        # add a wire at layer 4, track 1, from X=0.1 to X=0.3, coordinates
+        # specified in resolution units
+        warr2 = self.add_wires(hm_layer, 1, 100, 300, unit_mode=True)
+        # add a wire at layer 4, track 2.5, from X=0.2 to X=0.4
+        self.add_wires(hm_layer, 2.5, 200, 400, unit_mode=True)
+        # add a wire at layer 4, track 4, from X=0.2 to X=0.4, with 2 tracks wide
+        warr3 = self.add_wires(hm_layer, 4, 200, 400, width=2, unit_mode=True)
+
+        # add 3 parallel wires on layer 5, starting on track 6 and use every other track
+        warr4 = self.add_wires(vm_layer, 6, 100, 400, num=3, pitch=2, unit_mode=True)
+        print(warr4)
+
+        # create a TrackID object, representing a track
+        tid = TrackID(vm_layer, 3, width=2, num=1, pitch=0)
+        # connect metal 4 wires to the metal 5 track
+        warr5 = self.connect_to_tracks([warr1, warr3], tid)
+        print(warr5)
+
+        # add a pin on a WireArray
+        self.add_pin('pin1', warr1)
+        # add a pin, but make label different than net name.  Useful for LVS connect
+        self.add_pin('pin2', warr2, label='pin2:')
+        # add_pin also works for WireArray representing multiple wires
+        self.add_pin('pin3', warr4)
+        # add a pin (so it is visible in BAG), but do not create the actual layout in OA.
+        # this is useful for hiding pins on lower levels of hierarchy.
+        self.add_pin('pin4', warr3, show=False)
+
+
 class AmpCS(AnalogBase):
     """A template of a single transistor with dummies.
 

@@ -236,6 +236,126 @@ class AmpCS(AnalogBase):
         )
 
 
+class AmpSF(AnalogBase):
+    """A template of a single transistor with dummies.
+
+    This class is mainly used for transistor characterization or
+    design exploration with config views.
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : dict[str, any]
+        the parameter values.
+    used_names : set[str]
+        a set of already used cell names.
+    kwargs : dict[str, any]
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        super(AmpSF, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        """Returns a dictionary containing parameter descriptions.
+
+        Override this method to return a dictionary from parameter names to descriptions.
+
+        Returns
+        -------
+        param_info : dict[str, str]
+            dictionary from parameter name to description.
+        """
+        return dict(
+            lch='channel length, in meters.',
+            w_dict='width dictionary.',
+            intent_dict='intent dictionary.',
+            fg_dict='number of fingers dictionary.',
+            ndum='number of dummies on each side.',
+            ptap_w='NMOS substrate width, in meters/number of fins.',
+            ntap_w='PMOS substrate width, in meters/number of fins.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    def draw_layout(self):
+        """Draw the layout of a transistor for characterization.
+        """
+
+        lch = self.params['lch']
+        w_dict = self.params['w_dict']
+        intent_dict = self.params['intent_dict']
+        fg_dict = self.params['fg_dict']
+        ndum = self.params['ndum']
+        ptap_w = self.params['ptap_w']
+        ntap_w = self.params['ntap_w']
+        show_pins = self.params['show_pins']
+
+        fg_amp = fg_dict['amp']
+        fg_bias = fg_dict['bias']
+
+        if fg_bias % 2 != 0 or fg_amp % 2 != 0:
+            raise ValueError('fg_bias=%d and fg_amp=%d must all be even.' % (fg_bias, fg_amp))
+
+        fg_half_bias = fg_bias // 2
+        fg_half_amp = fg_amp // 2
+        fg_half = max(fg_half_bias, fg_half_amp)
+        fg_tot = (fg_half + ndum) * 2
+
+        # TODO: compute nw_list, nth_list, ng_tracks, and nds_tracks
+        nw_list = nth_list = ng_tracks = nds_tracks = None
+
+        n_orient = ['R0', 'MX']
+
+        self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list,
+                       nth_list, [], [],
+                       ng_tracks=ng_tracks, nds_tracks=nds_tracks,
+                       pg_tracks=[], pds_tracks=[],
+                       n_orientations=n_orient,
+                       )
+
+        if (fg_amp - fg_bias) % 4 == 0:
+            aout, aoutb, nsdir, nddir = 'd', 's', 2, 0
+        else:
+            aout, aoutb, nsdir, nddir = 's', 'd', 0, 2
+
+        # TODO: compute bias_col and amp_col
+        bias_col = amp_col = 0
+        amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir)
+        bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2)
+
+        # TODO: get TrackIDs for horizontal tracks
+        vdd_tid = vin_tid = vout_tid = vbias_tid = None
+
+        # TODO: connect transistors to horizontal tracks
+        vin_warr = vout_warr = vbias_warr = vdd_warr = None
+        self.connect_to_substrate('ptap', bias_ports['s'])
+
+        vss_warrs, _ = self.fill_dummy()
+
+        self.add_pin('VSS', vss_warrs, show=show_pins)
+        # TODO: add pins
+
+        sch_fg_dict = fg_dict.copy()
+        sch_fg_dict['dum_list'] = [fg_tot - fg_bias, fg_tot - fg_amp - 2, 2]
+
+        self._sch_params = dict(
+            lch=lch,
+            w_dict=w_dict,
+            intent_dict=intent_dict,
+            fg_dict=sch_fg_dict,
+        )
+
+
 class AmpSFSoln(AnalogBase):
     """A template of a single transistor with dummies.
 
@@ -317,20 +437,22 @@ class AmpSFSoln(AnalogBase):
         ng_tracks = [1, 3]
         nds_tracks = [1, 1]
 
+        n_orient = ['R0', 'MX']
+
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list,
                        nth_list, [], [],
                        ng_tracks=ng_tracks, nds_tracks=nds_tracks,
                        pg_tracks=[], pds_tracks=[],
-                       n_orientations=['R0', 'MX'],
+                       n_orientations=n_orient,
                        )
-        bias_col = ndum + fg_half - fg_half_bias
-        amp_col = ndum + fg_half - fg_half_amp
 
         if (fg_amp - fg_bias) % 4 == 0:
-            ampd, amps, nsdir, nddir = 'd', 's', 2, 0
+            aout, aoutb, nsdir, nddir = 'd', 's', 2, 0
         else:
-            ampd, amps, nsdir, nddir = 's', 'd', 0, 2
+            aout, aoutb, nsdir, nddir = 's', 'd', 0, 2
 
+        bias_col = ndum + fg_half - fg_half_bias
+        amp_col = ndum + fg_half - fg_half_amp
         amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir)
         bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2)
 
@@ -340,9 +462,9 @@ class AmpSFSoln(AnalogBase):
         vbias_tid = self.make_track_id('nch', 0, 'g', 0)
 
         vin_warr = self.connect_to_tracks(amp_ports['g'], vin_tid)
-        vout_warr = self.connect_to_tracks([amp_ports[ampd], bias_ports['d']], vout_tid)
+        vout_warr = self.connect_to_tracks([amp_ports[aout], bias_ports['d']], vout_tid)
         vbias_warr = self.connect_to_tracks(bias_ports['g'], vbias_tid)
-        vdd_warr = self.connect_to_tracks(amp_ports[amps], vdd_tid)
+        vdd_warr = self.connect_to_tracks(amp_ports[aoutb], vdd_tid)
         self.connect_to_substrate('ptap', bias_ports['s'])
 
         vss_warrs, _ = self.fill_dummy()

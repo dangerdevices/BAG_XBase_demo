@@ -89,6 +89,18 @@ class RoutingDemo(TemplateBase):
         # this is useful for hiding pins on lower levels of hierarchy.
         self.add_pin('pin4', warr3, show=False)
 
+        # set the size of this template
+        top_layer = vm_layer
+        num_h_tracks = 6
+        num_v_tracks = 11
+        # size is 3-element tuple of top layer ID, number of top
+        # vertical tracks, and number of top horizontal tracks
+        self.size = top_layer, num_v_tracks, num_h_tracks
+        # print bounding box of this template
+        print(self.bound_box)
+        # add a M7 rectangle to visualize bounding box in layout
+        self.add_rect('M7', self.bound_box)
+
 
 class AmpCS(AnalogBase):
     """A template of a single transistor with dummies.
@@ -431,7 +443,6 @@ class AmpChainSoln(TemplateBase):
 
         tot_box = cs_inst.bound_box.merge(sf_inst.bound_box)
         self.set_size_from_bound_box(top_layer, tot_box, round_up=True)
-        self.array_box = self.bound_box
 
         self.add_pin('VSS', self.connect_wires([cs_vss_warr, sf_vss_warr]), show=show_pins)
         self.reexport(cs_inst.get_port('vin'), show=show_pins)

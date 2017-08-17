@@ -55,27 +55,29 @@ class RoutingDemo(TemplateBase):
         hm_layer = 4
         vm_layer = 5
 
-        # add a wire at layer 4, track 0, from X=0.1 to X=0.3
+        # add a horizontal wire on track 0, from X=0.1 to X=0.3
         warr1 = self.add_wires(hm_layer, 0, 0.1, 0.3)
         # print WireArray object
         print(warr1)
+        # print lower, middle, and upper coordinate of wire.
+        print(warr1.lower, warr1.middle, warr1.upper)
         # print TrackID object associated with WireArray
         print(warr1.track_id)
-        # add a wire at layer 4, track 1, from X=0.1 to X=0.3, coordinates
-        # specified in resolution units
+        # add a horizontal wire on track 1, from X=0.1 to X=0.3,
+        # coordinates specified in resolution units
         warr2 = self.add_wires(hm_layer, 1, 100, 300, unit_mode=True)
-        # add a wire at layer 4, track 2.5, from X=0.2 to X=0.4
+        # add a horizontal wire on track 2.5, from X=0.2 to X=0.4
         self.add_wires(hm_layer, 2.5, 200, 400, unit_mode=True)
-        # add a wire at layer 4, track 4, from X=0.2 to X=0.4, with 2 tracks wide
+        # add a horizontal wire on track 4, from X=0.2 to X=0.4, with 2 tracks wide
         warr3 = self.add_wires(hm_layer, 4, 200, 400, width=2, unit_mode=True)
 
-        # add 3 parallel wires on layer 5, starting on track 6 and use every other track
+        # add 3 parallel vertical wires starting on track 6 and use every other track
         warr4 = self.add_wires(vm_layer, 6, 100, 400, num=3, pitch=2, unit_mode=True)
         print(warr4)
 
-        # create a TrackID object, representing a track
+        # create a TrackID object representing a vertical track
         tid = TrackID(vm_layer, 3, width=2, num=1, pitch=0)
-        # connect metal 4 wires to the metal 5 track
+        # connect horizontal wires to the vertical track
         warr5 = self.connect_to_tracks([warr1, warr3], tid)
         print(warr5)
 
@@ -85,8 +87,8 @@ class RoutingDemo(TemplateBase):
         self.add_pin('pin2', warr2, label='pin2:')
         # add_pin also works for WireArray representing multiple wires
         self.add_pin('pin3', warr4)
-        # add a pin (so it is visible in BAG), but do not create the actual layout in OA.
-        # this is useful for hiding pins on lower levels of hierarchy.
+        # add a pin (so it is visible in BAG), but do not create the actual layout
+        # in OA.  This is useful for hiding pins on lower levels of hierarchy.
         self.add_pin('pin4', warr3, show=False)
 
         # set the size of this template

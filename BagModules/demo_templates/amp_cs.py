@@ -38,34 +38,19 @@ yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info
 
 # noinspection PyPep8Naming
 class demo_templates__amp_cs(Module):
-    """Module for library demo_templates cell amp_cs.
 
-    Fill in high level description here.
-    """
-
+    # list of schematic parameters
     param_list = ['lch', 'w_dict', 'intent_dict', 'fg_dict', ]
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
-        Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        Module.__init__(self, bag_config, yaml_file, parent=parent,
+                        prj=prj, **kwargs)
+        # initialize self.parameters dictionary
         for par in self.param_list:
             self.parameters[par] = None
 
     def design(self, lch=18e-9, w_dict=None, intent_dict=None, fg_dict=None):
-        """To be overridden by subclasses to design this module.
-
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
+        # populate self.parameters dictionary
         local_dict = locals()
         for name in self.param_list:
             if name not in local_dict:
@@ -82,16 +67,21 @@ class demo_templates__amp_cs(Module):
         fg_dump = fg_dict['dump']
         fg_dumn_list = fg_dict['dumn_list']
 
+        # set transistor parameters
         self.instances['XP'].design(w=wp, l=lch, intent=intentp, nf=fg_load)
         self.instances['XPD'].design(w=wp, l=lch, intent=intentp, nf=fg_dump)
         self.instances['XN'].design(w=wn, l=lch, intent=intentn, nf=fg_amp)
 
-        if len(fg_dumn_list) > 1:
-            self.array_instance('XND', ['XND0', 'XND1'], term_list=[{}, dict(D='vout')])
+        if len(fg_dumn_list) == 1:
+            self.instances['XND'].design(w=wn, l=lch, intent=intentn, nf=fg_dumn_list[0])
+        else:
+            # we have two types of dummies.  Use array_instance to add a new
+            # dummy transistor.
+            name_list = ['XND0', 'XND1']
+            term_list = [{}, dict(D='vout')]
+            self.array_instance('XND', name_list, term_list=term_list)
             self.instances['XND'][0].design(w=wn, l=lch, intent=intentn, nf=fg_dumn_list[0])
             self.instances['XND'][1].design(w=wn, l=lch, intent=intentn, nf=fg_dumn_list[1])
-        else:
-            self.instances['XND'].design(w=wn, l=lch, intent=intentn, nf=fg_dumn_list[0])
 
     def get_layout_params(self, **kwargs):
         """Returns a dictionary with layout parameters.

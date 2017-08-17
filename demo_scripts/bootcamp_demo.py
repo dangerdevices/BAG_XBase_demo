@@ -274,6 +274,7 @@ if __name__ == '__main__':
     # routing_demo(bprj, top_specs)
     run_flow(bprj, top_specs, 'amp_cs')
     # gen_layout(bprj, top_specs, 'amp_sf')
+    # bprj.import_design_library('demo_templates')
     # run_flow(bprj, top_specs, 'amp_sf')
     # gen_layout(bprj, top_specs, 'amp_chain')
     # run_flow(bprj, top_specs, 'amp_chain')

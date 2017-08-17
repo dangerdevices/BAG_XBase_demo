@@ -543,53 +543,70 @@ class AmpChainSoln(TemplateBase):
         cs_params['show_pins'] = False
         sf_params['show_pins'] = False
 
+        # create layout masters for subcells we will add later
         cs_master = self.new_template(params=cs_params, temp_cls=AmpCS)
         sf_master = self.new_template(params=sf_params, temp_cls=AmpSFSoln)
 
+        # add subcell instances
         cs_inst = self.add_instance(cs_master, 'XCS')
+        # add source follower to the right of common source
         x0 = cs_inst.bound_box.right_unit
         sf_inst = self.add_instance(sf_master, 'XSF', loc=(x0, 0), unit_mode=True)
 
         # get VSS wires from AmpCS/AmpSF
         cs_vss_warr = cs_inst.get_all_port_pins('VSS')[0]
         sf_vss_warrs = sf_inst.get_all_port_pins('VSS')
+        # only connect bottom VSS wire of source follower
         if sf_vss_warrs[0].track_id.base_index < sf_vss_warrs[1].track_id.base_index:
             sf_vss_warr = sf_vss_warrs[0]
         else:
             sf_vss_warr = sf_vss_warrs[1]
 
-        hm_layer = cs_vss_warr.layer_id
+        # connect VSS of the two blocks together
+        vss = self.connect_wires([cs_vss_warr, sf_vss_warr])
+
+        # get layer IDs from VSS wire
+        hm_layer = vss.layer_id
         vm_layer = hm_layer + 1
         top_layer = vm_layer + 1
 
+        # calculate template size
         tot_box = cs_inst.bound_box.merge(sf_inst.bound_box)
         self.set_size_from_bound_box(top_layer, tot_box, round_up=True)
 
-        self.add_pin('VSS', self.connect_wires([cs_vss_warr, sf_vss_warr]), show=show_pins)
-        self.reexport(cs_inst.get_port('vin'), show=show_pins)
-        self.reexport(cs_inst.get_port('vbias'), net_name='vb1', show=show_pins)
-        self.reexport(sf_inst.get_port('vout'), show=show_pins)
-        self.reexport(sf_inst.get_port('vbias'), net_name='vb2', show=show_pins)
-
+        # get subcell ports as WireArrays so we can connect them
         vmid0 = cs_inst.get_all_port_pins('vout')[0]
         vmid1 = sf_inst.get_all_port_pins('vin')[0]
         vdd0 = cs_inst.get_all_port_pins('VDD')[0]
         vdd1 = sf_inst.get_all_port_pins('VDD')[0]
 
+        # connect vmid using vertical track in the middle of the two templates
         mid_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, x0, unit_mode=True))
         vmid = self.connect_to_tracks([vmid0, vmid1], mid_tid)
-        self.add_pin('vmid', vmid, show=show_pins)
 
+        # get vertical VDD TrackIDs
         vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle))
         vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle))
 
+        # connect VDD of each block to vertical M5
         vdd0 = self.connect_to_tracks(vdd0, vdd0_tid)
         vdd1 = self.connect_to_tracks(vdd1, vdd1_tid)
+        # connect M5 VDD to top M6 horizontal track
         vdd_tidx = self.grid.get_num_tracks(self.size, top_layer) - 1
         vdd_tid = TrackID(top_layer, vdd_tidx)
         vdd = self.connect_to_tracks([vdd0, vdd1], vdd_tid)
-        self.add_pin('VDD', vdd, show=show_pins)
 
+        # add pins on wires
+        self.add_pin('vmid', vmid, show=show_pins)
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
+        # re-export pins on subcells.
+        self.reexport(cs_inst.get_port('vin'), show=show_pins)
+        self.reexport(cs_inst.get_port('vbias'), net_name='vb1', show=show_pins)
+        self.reexport(sf_inst.get_port('vout'), show=show_pins)
+        self.reexport(sf_inst.get_port('vbias'), net_name='vb2', show=show_pins)
+
+        # compute schematic parameters.
         self._sch_params = dict(
             cs_params=cs_master.sch_params,
             sf_params=sf_master.sch_params,

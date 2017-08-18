@@ -51,21 +51,6 @@ class demo_templates__amp_chain(Module):
             self.parameters[par] = None
 
     def design(self, cs_params=None, sf_params=None):
-        """To be overridden by subclasses to design this module.
-
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
         local_dict = locals()
         for name in self.param_list:
             if name not in local_dict:

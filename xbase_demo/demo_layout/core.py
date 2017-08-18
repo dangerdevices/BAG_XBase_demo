@@ -487,26 +487,6 @@ class AmpSFSoln(AnalogBase):
 
 
 class AmpChain(TemplateBase):
-    """A template of a single transistor with dummies.
-
-    This class is mainly used for transistor characterization or
-    design exploration with config views.
-
-    Parameters
-    ----------
-    temp_db : :class:`bag.layout.template.TemplateDB`
-            the template database.
-    lib_name : str
-        the layout library name.
-    params : dict[str, any]
-        the parameter values.
-    used_names : set[str]
-        a set of already used cell names.
-    kwargs : dict[str, any]
-        dictionary of optional parameters.  See documentation of
-        :class:`bag.layout.template.TemplateBase` for details.
-    """
-
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         super(AmpChain, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
@@ -517,15 +497,6 @@ class AmpChain(TemplateBase):
 
     @classmethod
     def get_params_info(cls):
-        """Returns a dictionary containing parameter descriptions.
-
-        Override this method to return a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : dict[str, str]
-            dictionary from parameter name to description.
-        """
         return dict(
             cs_params='common source amplifier parameters.',
             sf_params='source follower parameters.',
@@ -536,10 +507,12 @@ class AmpChain(TemplateBase):
         """Draw the layout of a transistor for characterization.
         """
 
+        # make copies of given dictionaries to avoid modifying external data.
         cs_params = self.params['cs_params'].copy()
         sf_params = self.params['sf_params'].copy()
         show_pins = self.params['show_pins']
 
+        # disable pins in subcells
         cs_params['show_pins'] = False
         sf_params['show_pins'] = False
 
@@ -614,26 +587,6 @@ class AmpChain(TemplateBase):
 
 
 class AmpChainSoln(TemplateBase):
-    """A template of a single transistor with dummies.
-
-    This class is mainly used for transistor characterization or
-    design exploration with config views.
-
-    Parameters
-    ----------
-    temp_db : :class:`bag.layout.template.TemplateDB`
-            the template database.
-    lib_name : str
-        the layout library name.
-    params : dict[str, any]
-        the parameter values.
-    used_names : set[str]
-        a set of already used cell names.
-    kwargs : dict[str, any]
-        dictionary of optional parameters.  See documentation of
-        :class:`bag.layout.template.TemplateBase` for details.
-    """
-
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         super(AmpChainSoln, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
@@ -644,15 +597,6 @@ class AmpChainSoln(TemplateBase):
 
     @classmethod
     def get_params_info(cls):
-        """Returns a dictionary containing parameter descriptions.
-
-        Override this method to return a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : dict[str, str]
-            dictionary from parameter name to description.
-        """
         return dict(
             cs_params='common source amplifier parameters.',
             sf_params='source follower parameters.',

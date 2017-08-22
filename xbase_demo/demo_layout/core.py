@@ -550,6 +550,9 @@ class AmpChain(TemplateBase):
         # TODO: create sf_master
         sf_master = None
 
+        if sf_master is None:
+            return
+
         # add subcell instances
         cs_inst = self.add_instance(cs_master, 'XCS')
         # add source follower to the right of common source
@@ -596,7 +599,11 @@ class AmpChain(TemplateBase):
         vdd = self.connect_to_tracks([vdd0, vdd1], vdd_tid)
 
         # TODO: connect vmid0 and vmid1 to vertical track in the middle of two templates
+        # hint: use x0
         vmid = None
+
+        if vmid is None:
+            return
 
         # add pins on wires
         self.add_pin('vmid', vmid, show=show_pins)

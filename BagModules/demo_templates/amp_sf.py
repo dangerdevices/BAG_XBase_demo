@@ -72,10 +72,19 @@ class demo_templates__amp_sf(Module):
                 raise ValueError('Parameter %s not specified.' % name)
             self.parameters[name] = local_dict[name]
 
+        w_amp = w_dict['amp']
+        w_bias = w_dict['bias']
+        intent_amp = intent_dict['amp']
+        intent_bias = intent_dict['bias']
+        fg_amp = fg_dict['amp']
+        fg_bias = fg_dict['bias']
+
         # TODO: design XAMP and XBIAS transistors
-        fg_amp = fg_bias = None
-        w_amp = w_bias = None
-        intent_amp = intent_bias = None
+        # related code from amp_cs schematic generator are copied below
+        # for reference
+        # self.instances['XP'].design(w=wp, l=lch, intent=intentp, nf=fg_load)
+        # self.instances['XPD'].design(w=wp, l=lch, intent=intentp, nf=fg_dump)
+        # self.instances['XN'].design(w=wn, l=lch, intent=intentn, nf=fg_amp)
 
         # algorithm for drawing dummies
         fg_dum_list = fg_dict['dum_list']

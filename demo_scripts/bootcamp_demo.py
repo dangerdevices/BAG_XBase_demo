@@ -2,9 +2,11 @@
 
 import os
 import importlib
+from itertools import product
 
 import numpy as np
 import scipy.interpolate as interp
+import scipy.optimize as sciopt
 import matplotlib.pyplot as plt
 
 from bag import BagProject
@@ -197,48 +199,162 @@ def load_sim_data(specs, dsn_name):
     return results_dict
 
 
-def plot_data(results_dict):
-    dc_results = results_dict['tb_dc']
-    vin = dc_results['vin']
-    vout = dc_results['vout']
+def split_data_by_sweep(results, var_list):
+    sweep_names = results['sweep_params'][var_list[0]][:-1]
+    combo_list = []
+    for name in sweep_names:
+        combo_list.append(range(results[name].size))
 
-    vin_arg = np.argsort(vin)
-    vin = vin[vin_arg]
-    vout = vout[vin_arg]
-    vout_fun = interp.InterpolatedUnivariateSpline(vin, vout)
-    vout_diff_fun = vout_fun.derivative(1)
+    if combo_list:
+        idx_list_iter = product(*combo_list)
+    else:
+        idx_list_iter = [[]]
 
-    f, (ax1, ax2) = plt.subplots(2, sharex='all')
-    ax1.set_title('Vout vs Vin')
-    ax1.set_ylabel('Vout (V)')
-    ax1.plot(vin, vout)
-    ax2.set_title('Gain vs Vin')
-    ax2.set_ylabel('Gain (V/V)')
-    ax2.set_xlabel('Vin (V)')
-    ax2.plot(vin, vout_diff_fun(vin))
+    ans_list = []
+    for idx_list in idx_list_iter:
+        cur_label_list = []
+        for name, idx in zip(sweep_names, idx_list):
+            swp_val = results[name][idx]
+            if isinstance(swp_val, str):
+                cur_label_list.append('%s=%s' % (name, swp_val))
+            else:
+                cur_label_list.append('%s=%.4g' % (name, swp_val))
 
-    ac_tran_results = results_dict['tb_ac_tran']
-    tvec = ac_tran_results['time']
-    freq = ac_tran_results['freq']
-    vout_ac = ac_tran_results['vout_ac']
-    vout_tran = ac_tran_results['vout_tran']
+        if cur_label_list:
+            label = ', '.join(cur_label_list)
+        else:
+            label = ''
 
-    f, (ax1, ax2) = plt.subplots(2, sharex='all')
-    ax1.set_title('Magnitude vs Frequency')
-    ax1.set_ylabel('Magnitude (dB)')
-    ax1.semilogx(freq, 20 * np.log10(np.abs(vout_ac)))
-    ax2.set_title('Phase vs Frequency')
-    ax2.set_ylabel('Phase (Degrees)')
-    ax2.set_xlabel('Frequency (Hz)')
-    ax2.semilogx(freq, np.angle(vout_ac, deg=True))
+        cur_idx_list = list(idx_list)
+        cur_idx_list.append(slice(None))
 
-    plt.figure()
-    plt.title('Vout vs Time')
-    plt.ylabel('Vout (V)')
-    plt.xlabel('Time (s)')
-    plt.plot(tvec, vout_tran)
+        cur_results = {var: results[var][cur_idx_list] for var in var_list}
+        ans_list.append((label, cur_results))
 
-    plt.show()
+    return ans_list
+
+
+def process_tb_dc(tb_results, plot=True):
+    result_list = split_data_by_sweep(tb_results, ['vin', 'vout'])
+
+    plot_data_list = []
+    for label, res_dict in result_list:
+        cur_vin = res_dict['vin']
+        cur_vout = res_dict['vout']
+
+        vin_arg = np.argsort(cur_vin)
+        cur_vin = cur_vin[vin_arg]
+        cur_vout = cur_vout[vin_arg]
+        vout_fun = interp.InterpolatedUnivariateSpline(cur_vin, cur_vout)
+        vout_diff_fun = vout_fun.derivative(1)
+
+        print('%s, gain=%.4g' % (label, vout_diff_fun([0])))
+        plot_data_list.append((label, cur_vin, cur_vout, vout_diff_fun(cur_vin)))
+
+    if plot:
+        f, (ax1, ax2) = plt.subplots(2, sharex='all')
+        ax1.set_title('Vout vs Vin')
+        ax1.set_ylabel('Vout (V)')
+        ax2.set_title('Gain vs Vin')
+        ax2.set_ylabel('Gain (V/V)')
+        ax2.set_xlabel('Vin (V)')
+
+        for label, vin, vout, vdiff in plot_data_list:
+            if label:
+                ax1.plot(cur_vin, cur_vout, label=label)
+                ax2.plot(cur_vin, vout_diff_fun(cur_vin), label=label)
+            else:
+                ax1.plot(cur_vin, cur_vout)
+                ax2.plot(cur_vin, vout_diff_fun(cur_vin))
+
+        if len(result_list) > 1:
+            ax1.legend()
+            ax2.legend()
+
+
+def process_tb_ac(tb_results, plot=True):
+    result_list = split_data_by_sweep(tb_results, ['vout_ac'])
+
+    freq = tb_results['freq']
+    log_freq = np.log10(freq)
+    plot_data_list = []
+    for label, res_dict in result_list:
+        cur_vout = res_dict['vout_ac']
+        cur_mag = 20 * np.log10(np.abs(cur_vout))  # type: np.ndarray
+        cur_ang = np.angle(cur_vout, deg=True)
+
+        # interpolate log-log plot
+        mag_fun = interp.InterpolatedUnivariateSpline(log_freq, cur_mag)
+        ang_fun = interp.InterpolatedUnivariateSpline(log_freq, cur_ang)
+        # find 3db and unity gain frequency
+        dc_gain = cur_mag[0]
+        lf0 = log_freq[0]
+        lf1 = log_freq[-1]
+        lf_3db = sciopt.brentq(lambda x: mag_fun(x) - (dc_gain - 3), lf0, lf1)  # type: float
+        # noinspection PyTypeChecker
+        lf_unity = sciopt.brentq(mag_fun, lf0, lf1)  # type: float
+
+        # find phase margin
+        pm = 180 + ang_fun(lf_unity) - ang_fun(lf0)
+
+        print('%s, f_3db=%.4g, f_unity=%.4g, phase_margin=%.4g' % (label, 10.0**lf_3db, 10.0**lf_unity, pm))
+        plot_data_list.append((label, cur_mag, cur_ang))
+
+    if plot:
+        f, (ax1, ax2) = plt.subplots(2, sharex='all')
+        ax1.set_title('Magnitude vs Frequency')
+        ax1.set_ylabel('Magnitude (dB)')
+        ax2.set_title('Phase vs Frequency')
+        ax2.set_ylabel('Phase (Degrees)')
+        ax2.set_xlabel('Frequency (Hz)')
+
+        for label, cur_mag, cur_ang in plot_data_list:
+            if label:
+                ax1.semilogx(freq, cur_mag, label=label)
+                ax2.semilogx(freq, cur_ang, label=label)
+            else:
+                ax1.semilogx(freq, cur_mag)
+                ax2.semilogx(freq, cur_ang)
+
+        if len(result_list) > 1:
+            ax1.legend()
+            ax2.legend()
+
+
+def process_tb_tran(tb_results, plot=True):
+    result_list = split_data_by_sweep(tb_results, ['vout_tran'])
+
+    tvec = tb_results['time']
+    plot_data_list = []
+    for label, res_dict in result_list:
+        cur_vout = res_dict['vout_tran']
+
+        plot_data_list.append((label, cur_vout))
+
+    if plot:
+        plt.figure()
+        plt.title('Vout vs Time')
+        plt.ylabel('Vout (V)')
+        plt.xlabel('Time (s)')
+
+        for label, cur_vout in plot_data_list:
+            if label:
+                plt.plot(tvec, cur_vout, label=label)
+            else:
+                plt.plot(tvec, cur_vout)
+
+        if len(result_list) > 1:
+            plt.legend()
+
+
+def plot_data(results_dict, plot=True):
+    process_tb_dc(results_dict['tb_dc'], plot=plot)
+    process_tb_ac(results_dict['tb_ac_tran'], plot=plot)
+    process_tb_tran(results_dict['tb_ac_tran'], plot=plot)
+
+    if plot:
+        plt.show()
+
 
 def run_flow(prj, specs, dsn_name):
     run_lvs = True

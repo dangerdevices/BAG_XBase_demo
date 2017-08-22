@@ -290,14 +290,27 @@ def process_tb_ac(tb_results, plot=True):
         dc_gain = cur_mag[0]
         lf0 = log_freq[0]
         lf1 = log_freq[-1]
-        lf_3db = sciopt.brentq(lambda x: mag_fun(x) - (dc_gain - 3), lf0, lf1)  # type: float
-        # noinspection PyTypeChecker
-        lf_unity = sciopt.brentq(mag_fun, lf0, lf1)  # type: float
+        try:
+            lf_3db = sciopt.brentq(lambda x: mag_fun(x) - (dc_gain - 3), lf0, lf1)  # type: float
+            freq_3db = 10.0**lf_3db
+        except ValueError:
+            lf_3db = 0
+            freq_3db = -1
+        try:
+            # noinspection PyTypeChecker
+            lf_unity = sciopt.brentq(mag_fun, lf0, lf1)  # type: float
+            freq_unity = 10.0**lf_unity
+        except ValueError:
+            lf_unity = 0
+            freq_unity = -1
 
         # find phase margin
-        pm = 180 + ang_fun(lf_unity) - ang_fun(lf0)
+        if freq_unity > 0:
+            pm = 180 + ang_fun(lf_unity) - ang_fun(lf0)
+        else:
+            pm = 360
 
-        print('%s, f_3db=%.4g, f_unity=%.4g, phase_margin=%.4g' % (label, 10.0**lf_3db, 10.0**lf_unity, pm))
+        print('%s, f_3db=%.4g, f_unity=%.4g, phase_margin=%.4g' % (label, freq_3db, freq_unity, pm))
         plot_data_list.append((label, cur_mag, cur_ang))
 
     if plot:

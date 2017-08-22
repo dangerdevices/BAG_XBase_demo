@@ -569,7 +569,7 @@ class AmpChain(TemplateBase):
             sf_vss_warr = sf_vss_warrs[1]
 
         # connect VSS of the two blocks together
-        vss = self.connect_wires([cs_vss_warr, sf_vss_warr])
+        vss = self.connect_wires([cs_vss_warr, sf_vss_warr])[0]
 
         # get layer IDs from VSS wire
         hm_layer = vss.layer_id
@@ -670,7 +670,7 @@ class AmpChainSoln(TemplateBase):
             sf_vss_warr = sf_vss_warrs[1]
 
         # connect VSS of the two blocks together
-        vss = self.connect_wires([cs_vss_warr, sf_vss_warr])
+        vss = self.connect_wires([cs_vss_warr, sf_vss_warr])[0]
 
         # get layer IDs from VSS wire
         hm_layer = vss.layer_id

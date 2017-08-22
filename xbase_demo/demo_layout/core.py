@@ -311,8 +311,10 @@ class AmpSF(AnalogBase):
         fg_half = max(fg_half_bias, fg_half_amp)
         fg_tot = (fg_half + ndum) * 2
 
-        # TODO: compute nw_list, nth_list, ng_tracks, and nds_tracks
-        nw_list = nth_list = ng_tracks = nds_tracks = None
+        nw_list = [w_dict['bias'], w_dict['amp']]
+        nth_list = [intent_dict['bias'], intent_dict['amp']]
+        ng_tracks = [1, 3]
+        nds_tracks = [1, 1]
 
         n_orient = ['R0', 'MX']
 
@@ -336,8 +338,15 @@ class AmpSF(AnalogBase):
         # TODO: get TrackIDs for horizontal tracks
         vdd_tid = vin_tid = vout_tid = vbias_tid = None
 
+        if vdd_tid is None:
+            return
+        
         # TODO: connect transistors to horizontal tracks
         vin_warr = vout_warr = vbias_warr = vdd_warr = None
+
+        if vin_warr is None:
+            return
+
         self.connect_to_substrate('ptap', bias_ports['s'])
 
         vss_warrs, _ = self.fill_dummy()

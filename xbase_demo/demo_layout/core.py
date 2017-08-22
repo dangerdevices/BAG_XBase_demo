@@ -332,16 +332,36 @@ class AmpSF(AnalogBase):
 
         # TODO: compute bias_col and amp_col
         bias_col = amp_col = 0
+
         amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir)
         bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2)
 
         # TODO: get TrackIDs for horizontal tracks
+        # The following are related code copied and pasted from AmpCS
+        # for reference
+        # vin_tid = self.make_track_id('nch', 0, 'g', 0)
+        # vout_tid = self.make_track_id('pch', 0, 'ds', 0)
+        # vbias_tid = self.make_track_id('pch', 0, 'g', 0)
         vdd_tid = vin_tid = vout_tid = vbias_tid = None
 
         if vdd_tid is None:
             return
+
+        # uncomment to visualize track location
+        # hm_layer = self.mos_conn_layer + 1
+        # xl = self.bound_box.left_unit
+        # xr = self.bound_box.right_unit
+        # self.add_wires(hm_layer, vdd_tid.base_index, xl, xr, unit_mode=True)
+        # self.add_wires(hm_layer, vin_tid.base_index, xl, xr, unit_mode=True)
+        # self.add_wires(hm_layer, vout_tid.base_index, xl, xr, unit_mode=True)
+        # self.add_wires(hm_layer, vbias_tid.base_index, xl, xr, unit_mode=True)
         
         # TODO: connect transistors to horizontal tracks
+        # The following are related code copied and pasted from AmpCS
+        # for reference
+        # vin_warr = self.connect_to_tracks(amp_ports['g'], vin_tid)
+        # vout_warr = self.connect_to_tracks([amp_ports[aout], load_ports['d']], vout_tid)
+        # vbias_warr = self.connect_to_tracks(load_ports['g'], vbias_tid)
         vin_warr = vout_warr = vbias_warr = vdd_warr = None
 
         if vin_warr is None:

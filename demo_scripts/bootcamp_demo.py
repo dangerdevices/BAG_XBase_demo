@@ -242,8 +242,7 @@ def process_tb_dc(tb_results, plot=True):
         cur_vin = res_dict['vin']
         cur_vout = res_dict['vout']
 
-        vin_arg = np.argsort(cur_vin)
-        cur_vin = cur_vin[vin_arg]
+        cur_vin, vin_arg = np.unique(cur_vin, return_index=True)
         cur_vout = cur_vout[vin_arg]
         vout_fun = interp.InterpolatedUnivariateSpline(cur_vin, cur_vout)
         vout_diff_fun = vout_fun.derivative(1)

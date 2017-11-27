@@ -19,7 +19,7 @@ cap_swp_list = [100e-15, 500e-15]
 
 tb_lib = 'demo_testbenches'
 tb_cell = 'tb_tran_pwl'
-fname = os.path.join(os.environ['BAG_FRAMEWORK'], 'tutorial', 'demo_scripts', 'tb_tran_pwl.data')
+fname = os.path.join(os.environ['BAG_FRAMEWORK'], 'tutorial', 'scripts_demo', 'tb_tran_pwl.data')
 
 print('create DUT module')
 dsn = prj.create_design_module(dut_lib, dut_cell)

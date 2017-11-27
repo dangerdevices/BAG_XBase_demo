@@ -10,7 +10,7 @@ impl_lib = 'AAATB'
 
 dut_lib = 'demo_testbenches'
 dut_cell = 'stimuli_pwl_pinmod'
-fbase = os.path.join(os.environ['BAG_FRAMEWORK'], 'tutorial', 'demo_scripts')
+fbase = os.path.join(os.environ['BAG_FRAMEWORK'], 'tutorial', 'scripts_demo')
 
 fname_list = [os.path.join(fbase, 'a.data'),
               os.path.join(fbase, 'b.data'),

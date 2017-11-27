@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import importlib
 from itertools import product
 
 import numpy as np
@@ -9,13 +8,9 @@ import scipy.interpolate as interp
 import scipy.optimize as sciopt
 import matplotlib.pyplot as plt
 
-from bag import BagProject
-from bag.io import read_yaml
 from bag.layout.routing import RoutingGrid
 from bag.layout.template import TemplateDB
 from bag.data import load_sim_results, save_sim_results, load_sim_file
-
-from .demo_layout.core import RoutingDemo
 
 
 def make_tdb(prj, specs, impl_lib):
@@ -56,7 +51,7 @@ def routing_demo(prj, specs, routing_class):
     tdb = make_tdb(prj, specs, impl_lib)
     # compute layout
     print('computing layout')
-    #template = tdb.new_template(params={}, temp_cls=RoutingDemo)
+    # template = tdb.new_template(params={}, temp_cls=RoutingDemo)
     template = tdb.new_template(params={}, temp_cls=routing_class)
     # create layout in OA database
     print('creating layout')
@@ -70,23 +65,15 @@ def gen_layout(prj, specs, dsn_name, demo_class):
     dsn_specs = specs[dsn_name]
     impl_lib = dsn_specs['impl_lib']
     layout_params = dsn_specs['layout_params']
-    lay_package = dsn_specs['layout_package']
-    lay_class = dsn_specs['layout_class']
     gen_cell = dsn_specs['gen_cell']
-
-    # get layout generator class
-    #lay_module = importlib.import_module(lay_package)
-    #temp_cls = getattr(lay_module, lay_class)
-    temp_cls = demo_class
 
     # create layout template database
     tdb = make_tdb(prj, specs, impl_lib)
     # compute layout
     print('computing layout')
-    #template = tdb.new_template(params=layout_params, temp_cls=temp_cls)
+    # template = tdb.new_template(params=layout_params, temp_cls=temp_cls)
     template = tdb.new_template(params=layout_params, temp_cls=demo_class)
 
-    
     # create layout in OA database
     print('creating layout')
     tdb.batch_layout(prj, [template], [gen_cell])
@@ -296,20 +283,20 @@ def process_tb_ac(tb_results, plot=True):
         lf1 = log_freq[-1]
         try:
             lf_3db = sciopt.brentq(lambda x: mag_fun(x) - (dc_gain - 3), lf0, lf1)  # type: float
-            freq_3db = 10.0**lf_3db
+            freq_3db = 10.0 ** lf_3db
         except ValueError:
-            lf_3db = 0
             freq_3db = -1
         try:
             # noinspection PyTypeChecker
             lf_unity = sciopt.brentq(mag_fun, lf0, lf1)  # type: float
-            freq_unity = 10.0**lf_unity
+            freq_unity = 10.0 ** lf_unity
         except ValueError:
             lf_unity = 0
             freq_unity = -1
 
         # find phase margin
         if freq_unity > 0:
+            # noinspection PyTypeChecker
             pm = 180 + ang_fun(lf_unity) - ang_fun(lf0)
         else:
             pm = 360
@@ -387,38 +374,3 @@ def run_flow(prj, specs, dsn_name, demo_class):
     res_dict = load_sim_data(specs, dsn_name)
     # post-process simulation results
     plot_data(res_dict)
-
-def script_setup():
-	spec_fname = 'demo_specs/demo.yaml'
-	top_specs = read_yaml(spec_fname)
-	local_dict = locals()
-	if 'bprj' in local_dict:
-		print('using existing BagProject')
-		bprj = local_dict['bprj']
-	else:
-		print('creating BagProject')
-		bprj = BagProject()
-	return bprj
-
-if __name__ == '__main__':
-    spec_fname = 'demo_specs/demo.yaml'
-
-    # load specifications from file
-    top_specs = read_yaml(spec_fname)
-
-    # create BagProject object
-    local_dict = locals()
-    if 'bprj' in local_dict:
-        print('using existing BagProject')
-        bprj = local_dict['bprj']
-    else:
-        print('creating BagProject')
-        bprj = BagProject()
-
-    #routing_demo(bprj, top_specs)
-    #run_flow(bprj, top_specs, 'amp_cs')
-    #gen_layout(bprj, top_specs, 'amp_sf')
-    # bprj.import_design_library('demo_templates')
-    # run_flow(bprj, top_specs, 'amp_sf')
-    # gen_layout(bprj, top_specs, 'amp_chain')
-    # run_flow(bprj, top_specs, 'amp_chain')

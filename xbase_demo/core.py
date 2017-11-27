@@ -105,7 +105,7 @@ def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=Fal
 
     # create schematic in OA database
     print('creating %s schematics' % gen_cell)
-    dsn.implement_design(impl_lib, top_cell_name=gen_cell, erase=True)
+    dsn.implement_design(impl_lib, top_cell_name=gen_cell)
 
     if check_lvs:
         print('running lvs')

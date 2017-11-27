@@ -82,7 +82,7 @@ def gen_layout(prj, specs, dsn_name, demo_class):
     return template.sch_params
 
 
-def gen_schematics(prj, specs, dsn_name, sch_params, check_lvs=False):
+def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=False):
     dsn_specs = specs[dsn_name]
 
     impl_lib = dsn_specs['impl_lib']
@@ -92,10 +92,14 @@ def gen_schematics(prj, specs, dsn_name, sch_params, check_lvs=False):
     testbenches = dsn_specs['testbenches']
 
     # create schematic generator object
-    dsn = prj.create_design_module(sch_lib, sch_cell)
-    # compute schematic
-    print('computing %s schematics' % gen_cell)
-    dsn.design(**sch_params)
+    if sch_cls is None:
+        dsn = prj.create_design_module(sch_lib, sch_cell)
+        print('computing %s schematics' % gen_cell)
+        dsn.design(**sch_params)
+    else:
+        dsn = prj.new_schematic_instance(lib_name=sch_lib, cell_name=sch_cell, params=sch_params, sch_cls=sch_cls)
+        pass
+
     # create schematic in OA database
     print('creating %s schematics' % gen_cell)
     dsn.implement_design(impl_lib, top_cell_name=gen_cell, erase=True)
@@ -360,13 +364,11 @@ def plot_data(results_dict, plot=True):
         plt.show()
 
 
-def run_flow(prj, specs, dsn_name, demo_class):
-    run_lvs = True
-
+def run_flow(prj, specs, dsn_name, lay_cls, sch_cls=None, run_lvs=True):
     # generate layout, get schematic parameters from layout
-    dsn_sch_params = gen_layout(prj, specs, dsn_name, demo_class)
+    dsn_sch_params = gen_layout(prj, specs, dsn_name, lay_cls)
     # generate design/testbench schematics
-    gen_schematics(prj, specs, dsn_name, dsn_sch_params, check_lvs=run_lvs)
+    gen_schematics(prj, specs, dsn_name, dsn_sch_params, sch_cls=sch_cls, check_lvs=run_lvs)
     # run simulation and import results
     simulate(prj, specs, dsn_name)
 

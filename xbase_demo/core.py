@@ -82,7 +82,7 @@ def gen_layout(prj, specs, dsn_name, demo_class):
     return template.sch_params
 
 
-def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=False):
+def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=False, lvs_only=False):
     dsn_specs = specs[dsn_name]
 
     impl_lib = dsn_specs['impl_lib']
@@ -90,6 +90,9 @@ def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=Fal
     sch_cell = dsn_specs['sch_cell']
     gen_cell = dsn_specs['gen_cell']
     testbenches = dsn_specs['testbenches']
+
+    # clear existing designs
+    prj.clear_schematic_database()
 
     # create schematic generator object
     if sch_cls is None:
@@ -112,6 +115,9 @@ def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=Fal
         else:
             print('lvs passed')
             print('lvs log is ' + lvs_log)
+
+    if lvs_only:
+        return
 
     for name, info in testbenches.items():
         tb_lib = info['tb_lib']
@@ -364,11 +370,15 @@ def plot_data(results_dict, plot=True):
         plt.show()
 
 
-def run_flow(prj, specs, dsn_name, lay_cls, sch_cls=None, run_lvs=True):
+def run_flow(prj, specs, dsn_name, lay_cls, sch_cls=None, run_lvs=True, lvs_only=False):
     # generate layout, get schematic parameters from layout
     dsn_sch_params = gen_layout(prj, specs, dsn_name, lay_cls)
     # generate design/testbench schematics
-    gen_schematics(prj, specs, dsn_name, dsn_sch_params, sch_cls=sch_cls, check_lvs=run_lvs)
+    gen_schematics(prj, specs, dsn_name, dsn_sch_params, sch_cls=sch_cls, check_lvs=run_lvs, lvs_only=lvs_only)
+
+    if lvs_only:
+        print('LVS flow done')
+        return
     # run simulation and import results
     simulate(prj, specs, dsn_name)
 

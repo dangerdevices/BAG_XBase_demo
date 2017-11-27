@@ -377,8 +377,10 @@ def run_flow(prj, specs, dsn_name, lay_cls, sch_cls=None, run_lvs=True, lvs_only
     gen_schematics(prj, specs, dsn_name, dsn_sch_params, sch_cls=sch_cls, check_lvs=run_lvs, lvs_only=lvs_only)
 
     if lvs_only:
+        # return if we're only running LVS
         print('LVS flow done')
         return
+
     # run simulation and import results
     simulate(prj, specs, dsn_name)
 

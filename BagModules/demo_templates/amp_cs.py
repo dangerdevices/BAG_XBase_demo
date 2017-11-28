@@ -39,24 +39,29 @@ yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info
 # noinspection PyPep8Naming
 class demo_templates__amp_cs(Module):
 
-    # list of schematic parameters
-    param_list = ['lch', 'w_dict', 'intent_dict', 'fg_dict', ]
-
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent,
                         prj=prj, **kwargs)
-        # initialize self.parameters dictionary
-        for par in self.param_list:
-            self.parameters[par] = None
 
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        """Returns a dictionary from parameter names to descriptions.
+
+        Returns
+        -------
+        param_info : Optional[Dict[str, str]]
+            dictionary from parameter names to descriptions.
+        """
+        return dict(
+            lch='channel length in meters.',
+            w_dict='Dictionary of transistor widths.',
+            intent_dict='Dictionary of transistor threshold flavors.',
+            fg_dict='Dictionary of transistor number of fingers.',
+        )
+        
     def design(self, lch=18e-9, w_dict=None, intent_dict=None, fg_dict=None):
         # populate self.parameters dictionary
-        local_dict = locals()
-        for name in self.param_list:
-            if name not in local_dict:
-                raise ValueError('Parameter %s not specified.' % name)
-            self.parameters[name] = local_dict[name]
-
         wp = w_dict['load']
         wn = w_dict['amp']
         intentp = intent_dict['load']
@@ -82,37 +87,3 @@ class demo_templates__amp_cs(Module):
             self.array_instance('XND', name_list, term_list=term_list)
             self.instances['XND'][0].design(w=wn, l=lch, intent=intentn, nf=fg_dumn_list[0])
             self.instances['XND'][1].design(w=wn, l=lch, intent=intentn, nf=fg_dumn_list[1])
-
-    def get_layout_params(self, **kwargs):
-        """Returns a dictionary with layout parameters.
-
-        This method computes the layout parameters used to generate implementation's
-        layout.  Subclasses should override this method if you need to run post-extraction
-        layout.
-
-        Parameters
-        ----------
-        kwargs :
-            any extra parameters you need to generate the layout parameters dictionary.
-            Usually you specify layout-specific parameters here, like metal layers of
-            input/output, customizable wire sizes, and so on.
-
-        Returns
-        -------
-        params : dict[str, any]
-            the layout parameters dictionary.
-        """
-        return {}
-
-    def get_layout_pin_mapping(self):
-        """Returns the layout pin mapping dictionary.
-
-        This method returns a dictionary used to rename the layout pins, in case they are different
-        than the schematic pins.
-
-        Returns
-        -------
-        pin_mapping : dict[str, str]
-            a dictionary from layout pin names to schematic pin names.
-        """
-        return {}

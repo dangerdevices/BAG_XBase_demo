@@ -6,7 +6,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'amp_sf_soln.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'amp_sf_soln.yaml'))
 
 
 # noinspection PyPep8Naming

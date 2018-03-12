@@ -174,8 +174,8 @@ class AmpCS(AnalogBase):
         pg_tracks = [1]  # bias track
 
         # specify row orientations
-        n_orient = ['R0'] # gate connection on bottom
-        p_orient = ['MX'] # gate connection on top
+        n_orient = ['R0']  # gate connection on bottom
+        p_orient = ['MX']  # gate connection on top
 
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list,
                        nth_list, pw_list, pth_list,
@@ -186,15 +186,19 @@ class AmpCS(AnalogBase):
 
         # figure out if output connects to drain or source of nmos
         if (fg_amp - fg_load) % 4 == 0:
+            s_net, d_net = '', 'vout'
             aout, aoutb, nsdir, nddir = 'd', 's', 0, 2
         else:
+            s_net, d_net = 'vout', ''
             aout, aoutb, nsdir, nddir = 's', 'd', 2, 0
 
         # create transistor connections
         load_col = ndum + fg_half - fg_half_pmos
         amp_col = ndum + fg_half - fg_half_nmos
-        amp_ports = self.draw_mos_conn('nch', 0, amp_col, fg_amp, nsdir, nddir)
-        load_ports = self.draw_mos_conn('pch', 0, load_col, fg_load, 2, 0)
+        amp_ports = self.draw_mos_conn('nch', 0, amp_col, fg_amp, nsdir, nddir,
+                                       s_net=s_net, d_net=d_net)
+        load_ports = self.draw_mos_conn('pch', 0, load_col, fg_load, 2, 0,
+                                        s_net='', d_net='vout')
         # amp_ports/load_ports are dictionaries of WireArrays representing
         # transistor ports.
         print(amp_ports)
@@ -222,17 +226,12 @@ class AmpCS(AnalogBase):
         self.add_pin('vbias', vbias_warr, show=show_pins)
 
         # compute schematic parameters
-        sch_fg_dict = fg_dict.copy()
-        sch_fg_dict['dump'] = fg_tot - fg_load
-        if aout == 'd':
-            sch_fg_dict['dumn_list'] = [fg_tot - fg_amp]
-        else:
-            sch_fg_dict['dumn_list'] = [fg_tot - fg_amp - 2, 2]
         self._sch_params = dict(
             lch=lch,
             w_dict=w_dict,
             intent_dict=intent_dict,
-            fg_dict=sch_fg_dict,
+            fg_dict=fg_dict,
+            dum_info=self.get_sch_dummy_info(),
         )
 
 
@@ -326,15 +325,19 @@ class AmpSF(AnalogBase):
                        )
 
         if (fg_amp - fg_bias) % 4 == 0:
+            s_net, d_net = '', 'vout'
             aout, aoutb, nsdir, nddir = 'd', 's', 2, 0
         else:
+            s_net, d_net = 'vout', ''
             aout, aoutb, nsdir, nddir = 's', 'd', 0, 2
 
         # TODO: compute bias_col and amp_col
         bias_col = amp_col = 0
 
-        amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir)
-        bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2)
+        amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir,
+                                       s_net=s_net, d_net=d_net)
+        bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2,
+                                        s_net='', d_net='vout')
 
         # TODO: get TrackIDs for horizontal tracks
         # The following are related code copied and pasted from AmpCS
@@ -374,14 +377,13 @@ class AmpSF(AnalogBase):
         self.add_pin('VSS', vss_warrs, show=show_pins)
         # TODO: add pins
 
-        sch_fg_dict = fg_dict.copy()
-        sch_fg_dict['dum_list'] = [fg_tot - fg_bias, fg_tot - fg_amp - 2, 2]
-
+        # set schematic parameters
         self._sch_params = dict(
             lch=lch,
             w_dict=w_dict,
             intent_dict=intent_dict,
-            fg_dict=sch_fg_dict,
+            fg_dict=fg_dict,
+            dum_info=self.get_sch_dummy_info(),
         )
 
 
@@ -476,14 +478,18 @@ class AmpSFSoln(AnalogBase):
                        )
 
         if (fg_amp - fg_bias) % 4 == 0:
+            s_net, d_net = '', 'vout'
             aout, aoutb, nsdir, nddir = 'd', 's', 2, 0
         else:
+            s_net, d_net = 'vout', 's'
             aout, aoutb, nsdir, nddir = 's', 'd', 0, 2
 
         bias_col = ndum + fg_half - fg_half_bias
         amp_col = ndum + fg_half - fg_half_amp
-        amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir)
-        bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2)
+        amp_ports = self.draw_mos_conn('nch', 1, amp_col, fg_amp, nsdir, nddir,
+                                       s_net=s_net, d_net=d_net)
+        bias_ports = self.draw_mos_conn('nch', 0, bias_col, fg_bias, 0, 2,
+                                        s_net='', d_net='vout')
 
         vdd_tid = self.make_track_id('nch', 1, 'g', 0)
         vin_tid = self.make_track_id('nch', 1, 'g', 2)
@@ -504,14 +510,12 @@ class AmpSFSoln(AnalogBase):
         self.add_pin('vout', vout_warr, show=show_pins)
         self.add_pin('vbias', vbias_warr, show=show_pins)
 
-        sch_fg_dict = fg_dict.copy()
-        sch_fg_dict['dum_list'] = [fg_tot - fg_bias, fg_tot - fg_amp - 2, 2]
-
         self._sch_params = dict(
             lch=lch,
             w_dict=w_dict,
             intent_dict=intent_dict,
-            fg_dict=sch_fg_dict,
+            fg_dict=fg_dict,
+            dum_info=self.get_sch_dummy_info(),
         )
 
 

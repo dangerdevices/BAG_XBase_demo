@@ -2,7 +2,7 @@ lib_name: demo_templates
 cell_name: amp_cs
 pins: [ "VDD", "VSS", "vin", "vout", "vbias" ]
 instances:
-  XND:
+  XDUM:
     lib_name: BAG_prim
     cell_name: nmos4_standard
     instpins:
@@ -41,26 +41,6 @@ instances:
       G:
         direction: inputOutput
         net_name: "vin"
-        num_bits: 1
-  XPD:
-    lib_name: BAG_prim
-    cell_name: pmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "VDD"
         num_bits: 1
   XP:
     lib_name: BAG_prim

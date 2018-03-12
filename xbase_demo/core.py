@@ -100,8 +100,8 @@ def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=Fal
         print('computing %s schematics' % gen_cell)
         dsn.design(**sch_params)
     else:
-        dsn = prj.new_schematic_instance(lib_name=sch_lib, cell_name=sch_cell, params=sch_params, sch_cls=sch_cls)
-        pass
+        dsn = prj.new_schematic_instance(lib_name=sch_lib, cell_name=sch_cell,
+                                         params=sch_params, sch_cls=sch_cls)
 
     # create schematic in OA database
     print('creating %s schematics' % gen_cell)
@@ -135,7 +135,7 @@ def gen_schematics(prj, specs, dsn_name, sch_params, sch_cls=None, check_lvs=Fal
         print('computing %s schematics' % tb_gen_cell)
         tb_dsn.design(dut_lib=impl_lib, dut_cell=gen_cell, **tb_sch_params)
         print('creating %s schematics' % tb_gen_cell)
-        tb_dsn.implement_design(impl_lib, top_cell_name=tb_gen_cell, erase=True)
+        tb_dsn.implement_design(impl_lib, top_cell_name=tb_gen_cell)
 
     print('schematic done')
 
@@ -374,7 +374,8 @@ def run_flow(prj, specs, dsn_name, lay_cls, sch_cls=None, run_lvs=True, lvs_only
     # generate layout, get schematic parameters from layout
     dsn_sch_params = gen_layout(prj, specs, dsn_name, lay_cls)
     # generate design/testbench schematics
-    gen_schematics(prj, specs, dsn_name, dsn_sch_params, sch_cls=sch_cls, check_lvs=run_lvs, lvs_only=lvs_only)
+    gen_schematics(prj, specs, dsn_name, dsn_sch_params, sch_cls=sch_cls,
+                   check_lvs=run_lvs, lvs_only=lvs_only)
 
     if lvs_only:
         # return if we're only running LVS

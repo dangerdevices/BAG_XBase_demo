@@ -206,10 +206,14 @@ class AmpCS(AnalogBase):
 
         # create TrackID from relative track index
         vin_tid = self.make_track_id('nch', 0, 'g', 0)
-        vout_tid = self.make_track_id('pch', 0, 'ds', 0)
         vbias_tid = self.make_track_id('pch', 0, 'g', 0)
         # can also convert from relative to absolute track index
         print(self.get_track_index('nch', 0, 'g', 0))
+        # get output track index, put it in the middle
+        vout_bot = self.get_track_index('nch', 0, 'ds', 0)
+        vout_top = self.get_track_index('pch', 0, 'ds', 0)
+        vout_index = self.grid.get_middle_track(vout_bot, vout_top, round_up=True)
+        vout_tid = TrackID(self.mos_conn_layer + 1, vout_index)
 
         vin_warr = self.connect_to_tracks(amp_ports['g'], vin_tid)
         vout_warr = self.connect_to_tracks([amp_ports[aout], load_ports['d']], vout_tid)
@@ -692,8 +696,12 @@ class AmpChainSoln(TemplateBase):
         vdd1 = sf_inst.get_all_port_pins('VDD')[0]
 
         # get vertical VDD TrackIDs
-        vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle))
-        vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle))
+        top_w = self.grid.get_track_width(top_layer, 1, unit_mode=True)
+        vm_w_vdd = self.grid.get_min_track_width(vm_layer, top_w=top_w, unit_mode=True)
+        vdd0_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd0.middle),
+                           width=vm_w_vdd)
+        vdd1_tid = TrackID(vm_layer, self.grid.coord_to_nearest_track(vm_layer, vdd1.middle),
+                           width=vm_w_vdd)
 
         # connect VDD of each block to vertical M5
         vdd0 = self.connect_to_tracks(vdd0, vdd0_tid)

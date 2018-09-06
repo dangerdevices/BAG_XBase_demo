@@ -107,7 +107,7 @@ class RoutingDemo(TemplateBase):
 class AmpCS(AnalogBase):
     """A common source amplifier."""
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        super(AmpCS, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
 
     @property
@@ -261,7 +261,7 @@ class AmpSF(AnalogBase):
     """
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        super(AmpSF, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
 
     @property
@@ -413,7 +413,7 @@ class AmpSFSoln(AnalogBase):
     """
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        super(AmpSFSoln, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
 
     @property
@@ -482,10 +482,10 @@ class AmpSFSoln(AnalogBase):
                        )
 
         if (fg_amp - fg_bias) % 4 == 0:
-            s_net, d_net = '', 'vout'
+            s_net, d_net = 'VDD', 'vout'
             aout, aoutb, nsdir, nddir = 'd', 's', 2, 0
         else:
-            s_net, d_net = 'vout', 's'
+            s_net, d_net = 'vout', 'VDD'
             aout, aoutb, nsdir, nddir = 's', 'd', 0, 2
 
         bias_col = ndum + fg_half - fg_half_bias
@@ -525,7 +525,7 @@ class AmpSFSoln(AnalogBase):
 
 class AmpChain(TemplateBase):
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        super(AmpChain, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
 
     @property
@@ -571,7 +571,7 @@ class AmpChain(TemplateBase):
         cs_vss_warr = cs_inst.get_all_port_pins('VSS')[0]
         sf_vss_warrs = sf_inst.get_all_port_pins('VSS')
         # only connect bottom VSS wire of source follower
-        if sf_vss_warrs[0].track_id.base_index < sf_vss_warrs[1].track_id.base_index:
+        if len(sf_vss_warrs) < 2 or sf_vss_warrs[0].track_id.base_index < sf_vss_warrs[1].track_id.base_index:
             sf_vss_warr = sf_vss_warrs[0]
         else:
             sf_vss_warr = sf_vss_warrs[1]
@@ -632,7 +632,7 @@ class AmpChain(TemplateBase):
 
 class AmpChainSoln(TemplateBase):
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        super(AmpChainSoln, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
 
     @property
@@ -672,7 +672,7 @@ class AmpChainSoln(TemplateBase):
         cs_vss_warr = cs_inst.get_all_port_pins('VSS')[0]
         sf_vss_warrs = sf_inst.get_all_port_pins('VSS')
         # only connect bottom VSS wire of source follower
-        if sf_vss_warrs[0].track_id.base_index < sf_vss_warrs[1].track_id.base_index:
+        if len(sf_vss_warrs) < 2 or sf_vss_warrs[0].track_id.base_index < sf_vss_warrs[1].track_id.base_index:
             sf_vss_warr = sf_vss_warrs[0]
         else:
             sf_vss_warr = sf_vss_warrs[1]
